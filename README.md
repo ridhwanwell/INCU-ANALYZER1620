@@ -139,7 +139,6 @@
             font-family: 'Courier New', monospace;
         }
 
-        /* Battery Section */
         .battery-section {
             max-width: 1200px;
             margin: 0 auto 30px auto;
@@ -196,7 +195,6 @@
             color: #e74c3c;
         }
 
-        /* Alarm Section */
         .alarm-section {
             max-width: 1200px;
             margin: 0 auto 30px auto;
@@ -243,7 +241,6 @@
             color: #fff;
         }
 
-        /* Sensor Section */
         .sensor-section {
             max-width: 1200px;
             margin: 0 auto 30px auto;
@@ -405,7 +402,6 @@
 
     <div class="timer-display" id="timerDisplay">00:00:00</div>
 
-    <!-- Battery Status Section -->
     <div class="battery-section">
         <h2>Battery Status</h2>
         <div class="battery-grid">
@@ -432,7 +428,6 @@
         </div>
     </div>
 
-    <!-- Alarm Section -->
     <div class="alarm-section">
         <div class="alarm-box" id="alarmBox">
             <h3>System Status</h3>
@@ -441,7 +436,6 @@
         </div>
     </div>
 
-    <!-- Sensor Data Section -->
     <div class="sensor-section">
         <h2>Data Sensor</h2>
         <div class="sensor-grid">
@@ -506,20 +500,24 @@
     </div>
 
     <script>
-        // MQTT Configuration
+        // ========================================
+        // MQTT Configuration - YANG SUDAH DIPERBAIKI!
+        // ========================================
+        const brokerUrl = 'wss://broker.hivemq.com:8884/mqtt';
+        
         const options = {
-            protocol: 'ws',
-            hostname: 'broker.hivemq.com',
-            port: 8000,
-            path: '/mqtt',
             clean: true,
             connectTimeout: 4000,
             reconnectPeriod: 1000,
-            clientId: 'incu_analyzer_' + Math.random().toString(16).substr(2, 8)
+            clientId: 'incu_analyzer_' + Math.random().toString(16).substr(2, 8),
+            keepalive: 60,
+            protocolVersion: 4
         };
 
-        const client = mqtt.connect(options);
+        const client = mqtt.connect(brokerUrl, options);
         const topic = 'incu/sensors';
+        // ========================================
+
         let isRecording = false;
         let timerInterval;
         let dataInterval;
@@ -527,7 +525,6 @@
         let tableData = [];
         let currentSensorData = {};
 
-        // MQTT Connection handling
         client.on('connect', () => {
             console.log('Connected to MQTT broker');
             document.getElementById('mqttStatus').className = 'mqtt-status connected';
@@ -556,7 +553,6 @@
             console.log('Reconnecting to MQTT broker...');
         });
 
-        // Handle incoming MQTT messages
         client.on('message', (receivedTopic, message) => {
             try {
                 const data = JSON.parse(message.toString());
@@ -592,14 +588,12 @@
         }
 
         function updateBatteryStatus(data) {
-            // Update central unit battery
             if (data.battery_center !== undefined) {
                 const batteryCenter = parseFloat(data.battery_center);
                 document.getElementById('batteryCenterValue').textContent = `${batteryCenter.toFixed(0)}%`;
                 updateBatteryBox('batteryCenter', batteryCenter);
             }
 
-            // Update node batteries
             if (data.battery_node1 !== undefined) {
                 const batteryNode1 = parseFloat(data.battery_node1);
                 document.getElementById('batteryNode1Value').textContent = `${batteryNode1.toFixed(0)}%`;
@@ -642,7 +636,6 @@
             let alarms = [];
             let hasError = false;
 
-            // Check temperature difference (T1-T5)
             const temps = [data.t1, data.t2, data.t3, data.t4, data.t5].filter(t => t !== undefined).map(t => parseFloat(t));
             
             if (temps.length >= 2) {
@@ -654,7 +647,6 @@
                     hasError = true;
                     alarms.push(`⚠️ Temperature variance detected: ${tempDiff.toFixed(1)}°C difference (Max: ${maxTemp.toFixed(1)}°C, Min: ${minTemp.toFixed(1)}°C)`);
                     
-                    // Highlight problematic sensors
                     ['t1', 't2', 't3', 't4', 't5'].forEach((sensor, idx) => {
                         const temp = temps[idx];
                         if (temp !== undefined && (temp === maxTemp || temp === minTemp)) {
@@ -664,14 +656,12 @@
                         }
                     });
                 } else {
-                    // Remove error highlighting if temperature is normal
                     ['t1', 't2', 't3', 't4', 't5'].forEach(sensor => {
                         document.getElementById(sensor + 'Box').classList.remove('error');
                     });
                 }
             }
 
-            // Check for sensor failures (reading 0 or null)
             const sensorChecks = {
                 't1': data.t1, 't2': data.t2, 't3': data.t3, 't4': data.t4, 't5': data.t5,
                 'tm': data.tm, 'flow': data.flow, 'noise': data.noise, 'rh': data.rh
@@ -685,7 +675,6 @@
                 }
             });
 
-            // Check battery levels
             const batteries = {
                 'Central Unit': data.battery_center,
                 'Node 1': data.battery_node1,
@@ -701,7 +690,6 @@
                 }
             });
 
-            // Update alarm display
             if (hasError) {
                 alarmBox.classList.add('alarm-active');
                 alarmStatus.textContent = 'ALERT - System Issues Detected!';
@@ -787,7 +775,6 @@
             document.getElementById('intervalInput').disabled = true;
             document.getElementById('timerInput').disabled = true;
 
-            // Update timer display
             timerInterval = setInterval(() => {
                 remainingTime--;
                 document.getElementById('timerDisplay').textContent = formatTime(remainingTime);
@@ -797,7 +784,6 @@
                 }
             }, 1000);
 
-            // Save data at specified intervals
             dataInterval = setInterval(() => {
                 if (Object.keys(currentSensorData).length > 0) {
                     addTableRow(currentSensorData);
@@ -841,7 +827,6 @@
             }
 
             try {
-                // Prepare data for Excel
                 const wsData = [
                     ['Date', 'Time', 'T1 (°C)', 'T2 (°C)', 'T3 (°C)', 'T4 (°C)', 'T5 (°C)', 'TM (°C)', 'Flow (m/s)', 'Noise (dB)', 'RH (%)']
                 ];
@@ -862,33 +847,28 @@
                     ]);
                 });
 
-                // Create workbook and worksheet
                 const wb = XLSX.utils.book_new();
                 const ws = XLSX.utils.aoa_to_sheet(wsData);
 
-                // Set column widths
                 ws['!cols'] = [
-                    { wch: 12 }, // Date
-                    { wch: 12 }, // Time
-                    { wch: 10 }, // T1
-                    { wch: 10 }, // T2
-                    { wch: 10 }, // T3
-                    { wch: 10 }, // T4
-                    { wch: 10 }, // T5
-                    { wch: 10 }, // TM
-                    { wch: 12 }, // Flow
-                    { wch: 12 }, // Noise
-                    { wch: 10 }  // RH
+                    { wch: 12 },
+                    { wch: 12 },
+                    { wch: 10 },
+                    { wch: 10 },
+                    { wch: 10 },
+                    { wch: 10 },
+                    { wch: 10 },
+                    { wch: 10 },
+                    { wch: 12 },
+                    { wch: 12 },
+                    { wch: 10 }
                 ];
 
-                // Add worksheet to workbook
                 XLSX.utils.book_append_sheet(wb, ws, 'INCU Data');
 
-                // Generate filename with timestamp
                 const now = new Date();
                 const filename = `INCU_Data_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
 
-                // Export file
                 XLSX.writeFile(wb, filename);
                 
                 console.log('Data exported successfully to:', filename);
@@ -899,7 +879,6 @@
             }
         }
 
-        // Event Listeners
         document.getElementById('saveBtn').addEventListener('click', () => {
             if (isRecording) {
                 stopRecording();
@@ -911,10 +890,8 @@
         document.getElementById('resetBtn').addEventListener('click', resetData);
         document.getElementById('exportBtn').addEventListener('click', exportToSpreadsheet);
 
-        // Initialize timer display
         document.getElementById('timerDisplay').textContent = document.getElementById('timerInput').value || '00:00:00';
 
-        // Update timer display when input changes
         document.getElementById('timerInput').addEventListener('change', (e) => {
             if (!isRecording) {
                 document.getElementById('timerDisplay').textContent = e.target.value || '00:00:00';
@@ -922,7 +899,7 @@
         });
 
         console.log('INCU Analyzer initialized');
-        console.log('Connecting to MQTT broker: broker.hivemq.com:8000');
+        console.log('Connecting to MQTT broker: broker.hivemq.com:8884');
         console.log('Topic:', topic);
     </script>
 </body>
