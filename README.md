@@ -386,7 +386,7 @@
     <div class="control-buttons">
         <button id="saveBtn" class="control-btn">Play Saving Data</button>
         <button id="resetBtn" class="control-btn">Reset Data</button>
-        <button id="exportBtn" class="control-btn">Export to Excel</button>
+        <button id="exportBtn" class="control-btn">Export to Spreadsheet</button>
     </div>
 
     <div class="input-container">
@@ -524,6 +524,36 @@
         let remainingTime;
         let tableData = [];
         let currentSensorData = {};
+        let lastDataTime = Date.now(); // Track terakhir terima data
+        let connectionCheckInterval;
+
+        // Cek koneksi setiap 5 detik, jika tidak ada data baru > 10 detik, reset ke 00.0
+        connectionCheckInterval = setInterval(() => {
+            if (Date.now() - lastDataTime > 10000) { // 10 detik tidak ada data
+                resetSensorDisplay();
+            }
+        }, 5000);
+
+        function resetSensorDisplay() {
+            // Reset semua nilai sensor ke 00.0
+            document.getElementById('t1Value').textContent = '00.0 °C';
+            document.getElementById('t2Value').textContent = '00.0 °C';
+            document.getElementById('t3Value').textContent = '00.0 °C';
+            document.getElementById('t4Value').textContent = '00.0 °C';
+            document.getElementById('t5Value').textContent = '00.0 °C';
+            document.getElementById('tmValue').textContent = '00.0 °C';
+            document.getElementById('flowValue').textContent = '00.0 m/s';
+            document.getElementById('noiseValue').textContent = '00.0 dB';
+            document.getElementById('rhValue').textContent = '00.0 %';
+            
+            // Reset currentSensorData juga
+            currentSensorData = {
+                t1: 0, t2: 0, t3: 0, t4: 0,
+                t5: 0, tm: 0, flow: 0, noise: 0, rh: 0
+            };
+            
+            console.log('⚠️ Tidak ada data > 10 detik, display direset ke 00.0');
+        }
 
         client.on('connect', () => {
             console.log('Connected to MQTT broker');
@@ -542,11 +572,13 @@
             console.error('MQTT Error:', error);
             document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
             document.getElementById('mqttStatus').textContent = 'MQTT Status: Error - ' + error.message;
+            resetSensorDisplay(); // Reset saat error
         });
 
         client.on('offline', () => {
             document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
             document.getElementById('mqttStatus').textContent = 'MQTT Status: Offline';
+            resetSensorDisplay(); // Reset saat offline
         });
 
         client.on('reconnect', () => {
@@ -557,6 +589,10 @@
             try {
                 const data = JSON.parse(message.toString());
                 console.log('Received data:', data);
+                
+                // Update waktu terima data terakhir
+                lastDataTime = Date.now();
+                
                 currentSensorData = data;
                 updateSensorValues(data);
                 updateBatteryStatus(data);
@@ -576,15 +612,26 @@
         }
 
         function updateSensorValues(data) {
-            if (data.t1 !== undefined) document.getElementById('t1Value').textContent = `${parseFloat(data.t1).toFixed(1)} °C`;
-            if (data.t2 !== undefined) document.getElementById('t2Value').textContent = `${parseFloat(data.t2).toFixed(1)} °C`;
-            if (data.t3 !== undefined) document.getElementById('t3Value').textContent = `${parseFloat(data.t3).toFixed(1)} °C`;
-            if (data.t4 !== undefined) document.getElementById('t4Value').textContent = `${parseFloat(data.t4).toFixed(1)} °C`;
-            if (data.t5 !== undefined) document.getElementById('t5Value').textContent = `${parseFloat(data.t5).toFixed(1)} °C`;
-            if (data.tm !== undefined) document.getElementById('tmValue').textContent = `${parseFloat(data.tm).toFixed(1)} °C`;
-            if (data.flow !== undefined) document.getElementById('flowValue').textContent = `${parseFloat(data.flow).toFixed(1)} m/s`;
-            if (data.noise !== undefined) document.getElementById('noiseValue').textContent = `${parseFloat(data.noise).toFixed(1)} dB`;
-            if (data.rh !== undefined) document.getElementById('rhValue').textContent = `${parseFloat(data.rh).toFixed(1)} %`;
+            // T1-T4: Dari Node Sensor via ESP-NOW
+            document.getElementById('t1Value').textContent = data.t1 !== undefined && data.t1 !== null ? `${parseFloat(data.t1).toFixed(1)} °C` : '00.0 °C';
+            document.getElementById('t2Value').textContent = data.t2 !== undefined && data.t2 !== null ? `${parseFloat(data.t2).toFixed(1)} °C` : '00.0 °C';
+            document.getElementById('t3Value').textContent = data.t3 !== undefined && data.t3 !== null ? `${parseFloat(data.t3).toFixed(1)} °C` : '00.0 °C';
+            document.getElementById('t4Value').textContent = data.t4 !== undefined && data.t4 !== null ? `${parseFloat(data.t4).toFixed(1)} °C` : '00.0 °C';
+            
+            // T5: Suhu dari SHT30 (Main 1)
+            document.getElementById('t5Value').textContent = data.t5 !== undefined && data.t5 !== null ? `${parseFloat(data.t5).toFixed(1)} °C` : '00.0 °C';
+            
+            // TM: Temperature Matras dari Thermocouple Type K (Main 1)
+            document.getElementById('tmValue').textContent = data.tm !== undefined && data.tm !== null ? `${parseFloat(data.tm).toFixed(1)} °C` : '00.0 °C';
+            
+            // Flow: Airflow dari D6F-V03A1 (Main 1)
+            document.getElementById('flowValue').textContent = data.flow !== undefined && data.flow !== null ? `${parseFloat(data.flow).toFixed(1)} m/s` : '00.0 m/s';
+            
+            // Noise: dari INMP441 (Main 1)
+            document.getElementById('noiseValue').textContent = data.noise !== undefined && data.noise !== null ? `${parseFloat(data.noise).toFixed(1)} dB` : '00.0 dB';
+            
+            // RH: Kelembaban dari SHT30 (Main 1)
+            document.getElementById('rhValue').textContent = data.rh !== undefined && data.rh !== null ? `${parseFloat(data.rh).toFixed(1)} %` : '00.0 %';
         }
 
         function updateBatteryStatus(data) {
@@ -820,7 +867,7 @@
             }
         }
 
-        function exportToExcel() {
+        function exportToSpreadsheet() {
             if (tableData.length === 0) {
                 alert('No data to export. Please record some data first.');
                 return;
@@ -888,7 +935,7 @@
         });
 
         document.getElementById('resetBtn').addEventListener('click', resetData);
-        document.getElementById('exportBtn').addEventListener('click', exportToExcel);
+        document.getElementById('exportBtn').addEventListener('click', exportToSpreadsheet);
 
         document.getElementById('timerDisplay').textContent = document.getElementById('timerInput').value || '00:00:00';
 
