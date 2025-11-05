@@ -386,7 +386,7 @@
     <div class="control-buttons">
         <button id="saveBtn" class="control-btn">Play Saving Data</button>
         <button id="resetBtn" class="control-btn">Reset Data</button>
-        <button id="exportBtn" class="control-btn">Export to Spreadsheet</button>
+        <button id="exportBtn" class="control-btn">Export to Excel</button>
     </div>
 
     <div class="input-container">
@@ -820,7 +820,7 @@
             }
         }
 
-        function exportToSpreadsheet() {
+        function exportToExcel() {
             if (tableData.length === 0) {
                 alert('No data to export. Please record some data first.');
                 return;
@@ -888,7 +888,7 @@
         });
 
         document.getElementById('resetBtn').addEventListener('click', resetData);
-        document.getElementById('exportBtn').addEventListener('click', exportToSpreadsheet);
+        document.getElementById('exportBtn').addEventListener('click', exportToExcel);
 
         document.getElementById('timerDisplay').textContent = document.getElementById('timerInput').value || '00:00:00';
 
