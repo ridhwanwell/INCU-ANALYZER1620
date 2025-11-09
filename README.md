@@ -500,9 +500,6 @@
     </div>
 
     <script>
-        // ========================================
-        // MQTT Configuration - YANG SUDAH DIPERBAIKI!
-        // ========================================
         const brokerUrl = 'wss://broker.hivemq.com:8884/mqtt';
         
         const options = {
@@ -516,7 +513,6 @@
 
         const client = mqtt.connect(brokerUrl, options);
         const topic = 'incu/sensors';
-        // ========================================
 
         let isRecording = false;
         let timerInterval;
@@ -524,18 +520,16 @@
         let remainingTime;
         let tableData = [];
         let currentSensorData = {};
-        let lastDataTime = Date.now(); // Track terakhir terima data
+        let lastDataTime = Date.now();
         let connectionCheckInterval;
 
-        // Cek koneksi setiap 5 detik, jika tidak ada data baru > 10 detik, reset ke 00.0
         connectionCheckInterval = setInterval(() => {
-            if (Date.now() - lastDataTime > 10000) { // 10 detik tidak ada data
+            if (Date.now() - lastDataTime > 10000) {
                 resetSensorDisplay();
             }
         }, 5000);
 
         function resetSensorDisplay() {
-            // Reset semua nilai sensor ke 00.0
             document.getElementById('t1Value').textContent = '00.0 °C';
             document.getElementById('t2Value').textContent = '00.0 °C';
             document.getElementById('t3Value').textContent = '00.0 °C';
@@ -546,24 +540,19 @@
             document.getElementById('noiseValue').textContent = '00.0 dB';
             document.getElementById('rhValue').textContent = '00.0 %';
             
-            // Reset currentSensorData juga
             currentSensorData = {
                 t1: 0, t2: 0, t3: 0, t4: 0,
                 t5: 0, tm: 0, flow: 0, noise: 0, rh: 0
             };
-            
-            console.log('⚠️ Tidak ada data > 10 detik, display direset ke 00.0');
         }
 
         client.on('connect', () => {
             console.log('Connected to MQTT broker');
             document.getElementById('mqttStatus').className = 'mqtt-status connected';
-            document.getElementById('mqttStatus').textContent = 'MQTT Status: Connected to broker.hivemq.com';
+            document.getElementById('mqttStatus').textContent = 'MQTT Status: Connected';
             client.subscribe(topic, (err) => {
                 if (!err) {
                     console.log('Subscribed to topic:', topic);
-                } else {
-                    console.error('Subscription error:', err);
                 }
             });
         });
@@ -571,28 +560,20 @@
         client.on('error', (error) => {
             console.error('MQTT Error:', error);
             document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
-            document.getElementById('mqttStatus').textContent = 'MQTT Status: Error - ' + error.message;
-            resetSensorDisplay(); // Reset saat error
+            document.getElementById('mqttStatus').textContent = 'MQTT Status: Error';
+            resetSensorDisplay();
         });
 
         client.on('offline', () => {
             document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
             document.getElementById('mqttStatus').textContent = 'MQTT Status: Offline';
-            resetSensorDisplay(); // Reset saat offline
-        });
-
-        client.on('reconnect', () => {
-            console.log('Reconnecting to MQTT broker...');
+            resetSensorDisplay();
         });
 
         client.on('message', (receivedTopic, message) => {
             try {
                 const data = JSON.parse(message.toString());
-                console.log('Received data:', data);
-                
-                // Update waktu terima data terakhir
                 lastDataTime = Date.now();
-                
                 currentSensorData = data;
                 updateSensorValues(data);
                 updateBatteryStatus(data);
@@ -612,25 +593,14 @@
         }
 
         function updateSensorValues(data) {
-            // T1-T4: Dari Node Sensor via ESP-NOW
             document.getElementById('t1Value').textContent = data.t1 !== undefined && data.t1 !== null ? `${parseFloat(data.t1).toFixed(1)} °C` : '00.0 °C';
             document.getElementById('t2Value').textContent = data.t2 !== undefined && data.t2 !== null ? `${parseFloat(data.t2).toFixed(1)} °C` : '00.0 °C';
             document.getElementById('t3Value').textContent = data.t3 !== undefined && data.t3 !== null ? `${parseFloat(data.t3).toFixed(1)} °C` : '00.0 °C';
             document.getElementById('t4Value').textContent = data.t4 !== undefined && data.t4 !== null ? `${parseFloat(data.t4).toFixed(1)} °C` : '00.0 °C';
-            
-            // T5: Suhu dari SHT30 (Main 1)
             document.getElementById('t5Value').textContent = data.t5 !== undefined && data.t5 !== null ? `${parseFloat(data.t5).toFixed(1)} °C` : '00.0 °C';
-            
-            // TM: Temperature Matras dari Thermocouple Type K (Main 1)
             document.getElementById('tmValue').textContent = data.tm !== undefined && data.tm !== null ? `${parseFloat(data.tm).toFixed(1)} °C` : '00.0 °C';
-            
-            // Flow: Airflow dari D6F-V03A1 (Main 1)
             document.getElementById('flowValue').textContent = data.flow !== undefined && data.flow !== null ? `${parseFloat(data.flow).toFixed(1)} m/s` : '00.0 m/s';
-            
-            // Noise: dari INMP441 (Main 1)
             document.getElementById('noiseValue').textContent = data.noise !== undefined && data.noise !== null ? `${parseFloat(data.noise).toFixed(1)} dB` : '00.0 dB';
-            
-            // RH: Kelembaban dari SHT30 (Main 1)
             document.getElementById('rhValue').textContent = data.rh !== undefined && data.rh !== null ? `${parseFloat(data.rh).toFixed(1)} %` : '00.0 %';
         }
 
@@ -640,25 +610,21 @@
                 document.getElementById('batteryCenterValue').textContent = `${batteryCenter.toFixed(0)}%`;
                 updateBatteryBox('batteryCenter', batteryCenter);
             }
-
             if (data.battery_node1 !== undefined) {
                 const batteryNode1 = parseFloat(data.battery_node1);
                 document.getElementById('batteryNode1Value').textContent = `${batteryNode1.toFixed(0)}%`;
                 updateBatteryBox('batteryNode1', batteryNode1);
             }
-
             if (data.battery_node2 !== undefined) {
                 const batteryNode2 = parseFloat(data.battery_node2);
                 document.getElementById('batteryNode2Value').textContent = `${batteryNode2.toFixed(0)}%`;
                 updateBatteryBox('batteryNode2', batteryNode2);
             }
-
             if (data.battery_node3 !== undefined) {
                 const batteryNode3 = parseFloat(data.battery_node3);
                 document.getElementById('batteryNode3Value').textContent = `${batteryNode3.toFixed(0)}%`;
                 updateBatteryBox('batteryNode3', batteryNode3);
             }
-
             if (data.battery_node4 !== undefined) {
                 const batteryNode4 = parseFloat(data.battery_node4);
                 document.getElementById('batteryNode4Value').textContent = `${batteryNode4.toFixed(0)}%`;
@@ -692,35 +658,9 @@
 
                 if (tempDiff > 2.0) {
                     hasError = true;
-                    alarms.push(`⚠️ Temperature variance detected: ${tempDiff.toFixed(1)}°C difference (Max: ${maxTemp.toFixed(1)}°C, Min: ${minTemp.toFixed(1)}°C)`);
-                    
-                    ['t1', 't2', 't3', 't4', 't5'].forEach((sensor, idx) => {
-                        const temp = temps[idx];
-                        if (temp !== undefined && (temp === maxTemp || temp === minTemp)) {
-                            document.getElementById(sensor + 'Box').classList.add('error');
-                        } else {
-                            document.getElementById(sensor + 'Box').classList.remove('error');
-                        }
-                    });
-                } else {
-                    ['t1', 't2', 't3', 't4', 't5'].forEach(sensor => {
-                        document.getElementById(sensor + 'Box').classList.remove('error');
-                    });
+                    alarms.push(`⚠️ Temperature variance: ${tempDiff.toFixed(1)}°C`);
                 }
             }
-
-            const sensorChecks = {
-                't1': data.t1, 't2': data.t2, 't3': data.t3, 't4': data.t4, 't5': data.t5,
-                'tm': data.tm, 'flow': data.flow, 'noise': data.noise, 'rh': data.rh
-            };
-
-            Object.entries(sensorChecks).forEach(([sensor, value]) => {
-                if (value === undefined || value === null || value === 0) {
-                    hasError = true;
-                    alarms.push(`⚠️ ${sensor.toUpperCase()} sensor failure detected`);
-                    document.getElementById(sensor + 'Box').classList.add('error');
-                }
-            });
 
             const batteries = {
                 'Central Unit': data.battery_center,
@@ -733,17 +673,17 @@
             Object.entries(batteries).forEach(([name, level]) => {
                 if (level !== undefined && parseFloat(level) < 20) {
                     hasError = true;
-                    alarms.push(`🔋 Low battery warning: ${name} at ${parseFloat(level).toFixed(0)}%`);
+                    alarms.push(`🔋 Low battery: ${name} ${parseFloat(level).toFixed(0)}%`);
                 }
             });
 
             if (hasError) {
                 alarmBox.classList.add('alarm-active');
-                alarmStatus.textContent = 'ALERT - System Issues Detected!';
+                alarmStatus.textContent = 'ALERT!';
                 alarmMessages.innerHTML = alarms.join('<br>');
             } else {
                 alarmBox.classList.remove('alarm-active');
-                alarmStatus.textContent = 'Normal - No Alerts';
+                alarmStatus.textContent = 'Normal';
                 alarmMessages.innerHTML = '';
             }
         }
@@ -836,8 +776,6 @@
                     addTableRow(currentSensorData);
                 }
             }, intervalSeconds * 1000);
-
-            console.log('Recording started');
         }
 
         function stopRecording() {
@@ -849,12 +787,10 @@
             document.getElementById('saveBtn').textContent = 'Play Saving Data';
             document.getElementById('intervalInput').disabled = false;
             document.getElementById('timerInput').disabled = false;
-            
-            console.log('Recording stopped');
         }
 
         function resetData() {
-            if (confirm('Are you sure you want to reset all data? This action cannot be undone.')) {
+            if (confirm('Are you sure you want to reset all data?')) {
                 tableData = [];
                 document.getElementById('dataTableBody').innerHTML = '';
                 
@@ -863,7 +799,6 @@
                 }
                 
                 document.getElementById('timerDisplay').textContent = '00:00:00';
-                console.log('Data reset completed');
             }
         }
 
@@ -874,6 +809,7 @@
             }
 
             try {
+                // Sheet 1: Raw Data
                 const wsData = [
                     ['Date', 'Time', 'T1 (°C)', 'T2 (°C)', 'T3 (°C)', 'T4 (°C)', 'T5 (°C)', 'TM (°C)', 'Flow (m/s)', 'Noise (dB)', 'RH (%)']
                 ];
@@ -882,15 +818,15 @@
                     wsData.push([
                         row.date,
                         row.time,
-                        row.t1.toFixed(1),
-                        row.t2.toFixed(1),
-                        row.t3.toFixed(1),
-                        row.t4.toFixed(1),
-                        row.t5.toFixed(1),
-                        row.tm.toFixed(1),
-                        row.flow.toFixed(1),
-                        row.noise.toFixed(1),
-                        row.rh.toFixed(1)
+                        row.t1,
+                        row.t2,
+                        row.t3,
+                        row.t4,
+                        row.t5,
+                        row.tm,
+                        row.flow,
+                        row.noise,
+                        row.rh
                     ]);
                 });
 
@@ -898,28 +834,103 @@
                 const ws = XLSX.utils.aoa_to_sheet(wsData);
 
                 ws['!cols'] = [
-                    { wch: 12 },
-                    { wch: 12 },
-                    { wch: 10 },
-                    { wch: 10 },
-                    { wch: 10 },
-                    { wch: 10 },
-                    { wch: 10 },
-                    { wch: 10 },
-                    { wch: 12 },
-                    { wch: 12 },
-                    { wch: 10 }
+                    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
+                    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }
                 ];
 
-                XLSX.utils.book_append_sheet(wb, ws, 'INCU Data');
+                XLSX.utils.book_append_sheet(wb, ws, 'Raw Data');
+
+                // Sheet 2: Statistical Analysis
+                const sensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
+                const analysisData = [];
+                
+                analysisData.push(['ANALISIS STATISTIK SUHU']);
+                analysisData.push([]);
+                analysisData.push(['Sensor', 'Kategori', 'Pembacaan', 'Nilai (°C)', 'STDEV', 'Mean', 'Mean Terkoreksi']);
+                analysisData.push([]);
+
+                sensors.forEach(sensor => {
+                    const sensorKey = sensor.toLowerCase();
+                    const temps = tableData.map(row => row[sensorKey]).filter(t => t > 0);
+                    
+                    if (temps.length === 0) return;
+
+                    const sortedTemps = [...temps].sort((a, b) => a - b);
+                    const minValues = sortedTemps.slice(0, Math.min(3, sortedTemps.length));
+                    const maxValues = sortedTemps.slice(-Math.min(3, sortedTemps.length)).reverse();
+
+                    const calculateStdev = (values) => {
+                        if (values.length < 2) return 0;
+                        const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
+                        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (values.length - 1);
+                        return Math.sqrt(variance);
+                    };
+
+                    minValues.forEach((val, idx) => {
+                        const stdev = calculateStdev([val]);
+                        const mean = val;
+                        analysisData.push([
+                            sensor,
+                            'Minimal',
+                            `Pembacaan ${idx + 1}`,
+                            val.toFixed(3),
+                            stdev.toFixed(3),
+                            mean.toFixed(3),
+                            ''
+                        ]);
+                    });
+
+                    maxValues.forEach((val, idx) => {
+                        const stdev = calculateStdev([val]);
+                        const mean = val;
+                        analysisData.push([
+                            sensor,
+                            'Maksimal',
+                            `Pembacaan ${idx + 1}`,
+                            val.toFixed(3),
+                            stdev.toFixed(3),
+                            mean.toFixed(3),
+                            ''
+                        ]);
+                    });
+
+                    analysisData.push([]);
+                });
+
+                // Sheet 3: Tabel Ketidakpastian
+                const uncertaintyData = [];
+                uncertaintyData.push(['TABEL NILAI KETIDAKPASTIAN']);
+                uncertaintyData.push([]);
+                uncertaintyData.push(['Sensor', 'Suhu 32°C', 'Suhu 36°C']);
+                uncertaintyData.push(['T1', -0.034, -0.005]);
+                uncertaintyData.push(['T2', -0.034, 0.145]);
+                uncertaintyData.push(['T3', 0.006, 0.065]);
+                uncertaintyData.push(['T4', 0.066, 0.135]);
+                uncertaintyData.push(['T5', -0.024, 0.055]);
+                uncertaintyData.push([]);
+                uncertaintyData.push(['Catatan:', 'Mean Terkoreksi = Mean + Nilai Ketidakpastian']);
+                uncertaintyData.push(['', 'Pilih nilai ketidakpastian sesuai suhu terdekat (32°C atau 36°C)']);
+
+                const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
+                wsAnalysis['!cols'] = [
+                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 },
+                    { wch: 12 }, { wch: 12 }, { wch: 18 }
+                ];
+
+                const wsUncertainty = XLSX.utils.aoa_to_sheet(uncertaintyData);
+                wsUncertainty['!cols'] = [
+                    { wch: 12 }, { wch: 15 }, { wch: 15 }
+                ];
+
+                XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analisis Statistik');
+                XLSX.utils.book_append_sheet(wb, wsUncertainty, 'Ketidakpastian');
 
                 const now = new Date();
                 const filename = `INCU_Data_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
 
                 XLSX.writeFile(wb, filename);
                 
-                console.log('Data exported successfully to:', filename);
-                alert('Data exported successfully!');
+                alert('Data exported successfully with statistical analysis!');
             } catch (error) {
                 console.error('Export error:', error);
                 alert('Error exporting data: ' + error.message);
@@ -946,8 +957,6 @@
         });
 
         console.log('INCU Analyzer initialized');
-        console.log('Connecting to MQTT broker: broker.hivemq.com:8884');
-        console.log('Topic:', topic);
     </script>
 </body>
 </html>
