@@ -530,15 +530,15 @@
         }, 5000);
 
         function resetSensorDisplay() {
-            document.getElementById('t1Value').textContent = '00.0 °C';
-            document.getElementById('t2Value').textContent = '00.0 °C';
-            document.getElementById('t3Value').textContent = '00.0 °C';
-            document.getElementById('t4Value').textContent = '00.0 °C';
-            document.getElementById('t5Value').textContent = '00.0 °C';
-            document.getElementById('tmValue').textContent = '00.0 °C';
-            document.getElementById('flowValue').textContent = '00.0 m/s';
-            document.getElementById('noiseValue').textContent = '00.0 dB';
-            document.getElementById('rhValue').textContent = '00.0 %';
+            document.getElementById('t1Value').textContent = '00.00 °C';
+            document.getElementById('t2Value').textContent = '00.00 °C';
+            document.getElementById('t3Value').textContent = '00.00 °C';
+            document.getElementById('t4Value').textContent = '00.00 °C';
+            document.getElementById('t5Value').textContent = '00.00 °C';
+            document.getElementById('tmValue').textContent = '00.00 °C';
+            document.getElementById('flowValue').textContent = '00.00 m/s';
+            document.getElementById('noiseValue').textContent = '00.00 dB';
+            document.getElementById('rhValue').textContent = '00.00 %';
             
             currentSensorData = {
                 t1: 0, t2: 0, t3: 0, t4: 0,
@@ -593,15 +593,15 @@
         }
 
         function updateSensorValues(data) {
-            document.getElementById('t1Value').textContent = data.t1 !== undefined && data.t1 !== null ? `${parseFloat(data.t1).toFixed(1)} °C` : '00.0 °C';
-            document.getElementById('t2Value').textContent = data.t2 !== undefined && data.t2 !== null ? `${parseFloat(data.t2).toFixed(1)} °C` : '00.0 °C';
-            document.getElementById('t3Value').textContent = data.t3 !== undefined && data.t3 !== null ? `${parseFloat(data.t3).toFixed(1)} °C` : '00.0 °C';
-            document.getElementById('t4Value').textContent = data.t4 !== undefined && data.t4 !== null ? `${parseFloat(data.t4).toFixed(1)} °C` : '00.0 °C';
-            document.getElementById('t5Value').textContent = data.t5 !== undefined && data.t5 !== null ? `${parseFloat(data.t5).toFixed(1)} °C` : '00.0 °C';
-            document.getElementById('tmValue').textContent = data.tm !== undefined && data.tm !== null ? `${parseFloat(data.tm).toFixed(1)} °C` : '00.0 °C';
-            document.getElementById('flowValue').textContent = data.flow !== undefined && data.flow !== null ? `${parseFloat(data.flow).toFixed(1)} m/s` : '00.0 m/s';
-            document.getElementById('noiseValue').textContent = data.noise !== undefined && data.noise !== null ? `${parseFloat(data.noise).toFixed(1)} dB` : '00.0 dB';
-            document.getElementById('rhValue').textContent = data.rh !== undefined && data.rh !== null ? `${parseFloat(data.rh).toFixed(1)} %` : '00.0 %';
+            document.getElementById('t1Value').textContent = data.t1 !== undefined && data.t1 !== null ? `${parseFloat(data.t1).toFixed(2)} °C` : '00.00 °C';
+            document.getElementById('t2Value').textContent = data.t2 !== undefined && data.t2 !== null ? `${parseFloat(data.t2).toFixed(2)} °C` : '00.00 °C';
+            document.getElementById('t3Value').textContent = data.t3 !== undefined && data.t3 !== null ? `${parseFloat(data.t3).toFixed(2)} °C` : '00.00 °C';
+            document.getElementById('t4Value').textContent = data.t4 !== undefined && data.t4 !== null ? `${parseFloat(data.t4).toFixed(2)} °C` : '00.00 °C';
+            document.getElementById('t5Value').textContent = data.t5 !== undefined && data.t5 !== null ? `${parseFloat(data.t5).toFixed(2)} °C` : '00.00 °C';
+            document.getElementById('tmValue').textContent = data.tm !== undefined && data.tm !== null ? `${parseFloat(data.tm).toFixed(2)} °C` : '00.00 °C';
+            document.getElementById('flowValue').textContent = data.flow !== undefined && data.flow !== null ? `${parseFloat(data.flow).toFixed(2)} m/s` : '00.00 m/s';
+            document.getElementById('noiseValue').textContent = data.noise !== undefined && data.noise !== null ? `${parseFloat(data.noise).toFixed(2)} dB` : '00.00 dB';
+            document.getElementById('rhValue').textContent = data.rh !== undefined && data.rh !== null ? `${parseFloat(data.rh).toFixed(2)} %` : '00.00 %';
         }
 
         function updateBatteryStatus(data) {
@@ -712,15 +712,15 @@
             tr.innerHTML = `
                 <td>${row.date}</td>
                 <td>${row.time}</td>
-                <td>${row.t1.toFixed(1)}</td>
-                <td>${row.t2.toFixed(1)}</td>
-                <td>${row.t3.toFixed(1)}</td>
-                <td>${row.t4.toFixed(1)}</td>
-                <td>${row.t5.toFixed(1)}</td>
-                <td>${row.tm.toFixed(1)}</td>
-                <td>${row.flow.toFixed(1)}</td>
-                <td>${row.noise.toFixed(1)}</td>
-                <td>${row.rh.toFixed(1)}</td>
+                <td>${row.t1.toFixed(2)}</td>
+                <td>${row.t2.toFixed(2)}</td>
+                <td>${row.t3.toFixed(2)}</td>
+                <td>${row.t4.toFixed(2)}</td>
+                <td>${row.t5.toFixed(2)}</td>
+                <td>${row.tm.toFixed(2)}</td>
+                <td>${row.flow.toFixed(2)}</td>
+                <td>${row.noise.toFixed(2)}</td>
+                <td>${row.rh.toFixed(2)}</td>
             `;
             
             tbody.insertBefore(tr, tbody.firstChild);
@@ -841,66 +841,49 @@
                 XLSX.utils.book_append_sheet(wb, ws, 'Raw Data');
 
                 // Sheet 2: Statistical Analysis
-                const sensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
                 const analysisData = [];
                 
-                analysisData.push(['ANALISIS STATISTIK SUHU']);
+                analysisData.push(['ANALISIS STATISTIK']);
                 analysisData.push([]);
-                analysisData.push(['Sensor', 'Kategori', 'Pembacaan', 'Nilai (°C)', 'STDEV', 'Mean', 'Mean Terkoreksi']);
+                analysisData.push(['Parameter', 'Minimal', 'Maksimal', 'STDEV', 'Mean']);
                 analysisData.push([]);
 
+                // Suhu T1-T5
+                const sensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
                 sensors.forEach(sensor => {
                     const sensorKey = sensor.toLowerCase();
                     const temps = tableData.map(row => row[sensorKey]).filter(t => t > 0);
                     
-                    if (temps.length === 0) return;
-
-                    const sortedTemps = [...temps].sort((a, b) => a - b);
-                    const minValues = sortedTemps.slice(0, Math.min(3, sortedTemps.length));
-                    const maxValues = sortedTemps.slice(-Math.min(3, sortedTemps.length)).reverse();
-
-                    const calculateStdev = (values) => {
-                        if (values.length < 2) return 0;
-                        const mean = values.reduce((sum, val) => sum + val, 0) / values.length;
-                        const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / (values.length - 1);
-                        return Math.sqrt(variance);
-                    };
-
-                    minValues.forEach((val, idx) => {
-                        const stdev = calculateStdev([val]);
-                        const mean = val;
+                    if (temps.length > 0) {
+                        const sortedTemps = [...temps].sort((a, b) => a - b);
+                        const minValue = sortedTemps[0];
+                        const maxValue = sortedTemps[sortedTemps.length - 1];
+                        
                         analysisData.push([
                             sensor,
-                            'Minimal',
-                            `Pembacaan ${idx + 1}`,
-                            val.toFixed(3),
-                            stdev.toFixed(3),
-                            mean.toFixed(3),
-                            ''
+                            minValue.toFixed(2),
+                            maxValue.toFixed(2),
+                            '', // STDEV kosong
+                            ''  // Mean kosong
                         ]);
-                    });
-
-                    maxValues.forEach((val, idx) => {
-                        const stdev = calculateStdev([val]);
-                        const mean = val;
-                        analysisData.push([
-                            sensor,
-                            'Maksimal',
-                            `Pembacaan ${idx + 1}`,
-                            val.toFixed(3),
-                            stdev.toFixed(3),
-                            mean.toFixed(3),
-                            ''
-                        ]);
-                    });
-
-                    analysisData.push([]);
+                    }
                 });
 
-                // Sheet 3: Tabel Ketidakpastian
+                analysisData.push([]);
+                
+                // Parameter lainnya
+                analysisData.push(['Kelembapan', '', '', '', '']);
+                analysisData.push(['TM (Suhu Matras)', '', '', '', '']);
+                analysisData.push(['Airflow', '', '', '', '']);
+                analysisData.push(['Kebisingan', '', '', '', '']);
+
+                // Sheet 3: Uncertainty
                 const uncertaintyData = [];
-                uncertaintyData.push(['TABEL NILAI KETIDAKPASTIAN']);
+                uncertaintyData.push(['UNCERTAINTY ANALYSIS']);
                 uncertaintyData.push([]);
+                
+                // Tabel Nilai Ketidakpastian
+                uncertaintyData.push(['TABEL NILAI KETIDAKPASTIAN']);
                 uncertaintyData.push(['Sensor', 'Suhu 32°C', 'Suhu 36°C']);
                 uncertaintyData.push(['T1', -0.034, -0.005]);
                 uncertaintyData.push(['T2', -0.034, 0.145]);
@@ -908,22 +891,30 @@
                 uncertaintyData.push(['T4', 0.066, 0.135]);
                 uncertaintyData.push(['T5', -0.024, 0.055]);
                 uncertaintyData.push([]);
-                uncertaintyData.push(['Catatan:', 'Mean Terkoreksi = Mean + Nilai Ketidakpastian']);
-                uncertaintyData.push(['', 'Pilih nilai ketidakpastian sesuai suhu terdekat (32°C atau 36°C)']);
+                uncertaintyData.push([]);
+                
+                // Tabel Lengkap
+                uncertaintyData.push(['TABEL ANALISIS LENGKAP']);
+                uncertaintyData.push(['Setting Alat', 'STDEV', 'Mean', 'Mean Terkoreksi', 'Koreksi', 'U95', 'Koreksi + U95', 'Toleransi']);
+                uncertaintyData.push(['T1', '', '', '', '', '', '', 0.8]);
+                uncertaintyData.push(['T2', '', '', '', '', '', '', 0.8]);
+                uncertaintyData.push(['T3', '', '', '', '', '', '', 0.8]);
+                uncertaintyData.push(['T4', '', '', '', '', '', '', 0.8]);
+                uncertaintyData.push(['T5', '', '', '', '', '', '', 0.8]);
 
                 const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
                 wsAnalysis['!cols'] = [
-                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 },
-                    { wch: 12 }, { wch: 12 }, { wch: 18 }
+                    { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
                 ];
 
                 const wsUncertainty = XLSX.utils.aoa_to_sheet(uncertaintyData);
                 wsUncertainty['!cols'] = [
-                    { wch: 12 }, { wch: 15 }, { wch: 15 }
+                    { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 16 },
+                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }
                 ];
 
                 XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analisis Statistik');
-                XLSX.utils.book_append_sheet(wb, wsUncertainty, 'Ketidakpastian');
+                XLSX.utils.book_append_sheet(wb, wsUncertainty, 'Uncertainty');
 
                 const now = new Date();
                 const filename = `INCU_Data_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
