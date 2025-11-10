@@ -895,16 +895,16 @@
                 
                 // Tabel Lengkap
                 uncertaintyData.push(['TABEL ANALISIS LENGKAP']);
-                uncertaintyData.push(['Setting Alat', 'STDEV', 'Mean', 'Mean Terkoreksi', 'Koreksi', 'U95', 'Koreksi + U95', 'Toleransi']);
-                uncertaintyData.push(['T1', '', '', '', '', 0.52, '', 0.8]);
-                uncertaintyData.push(['T2', '', '', '', '', 0.52, '', 0.8]);
-                uncertaintyData.push(['T3', '', '', '', '', 0.52, '', 0.8]);
-                uncertaintyData.push(['T4', '', '', '', '', 0.52, '', 0.8]);
-                uncertaintyData.push(['T5', '', '', '', '', 0.52, '', 0.8]);
-                uncertaintyData.push(['Kelembapan', '', '', '', '', '', '', '0.10 %rh']);
-                uncertaintyData.push(['Airflow', '', '', '', '', '', '', '0.35 m/s']);
-                uncertaintyData.push(['Kebisingan', '', '', '', '', '', '', '60 dB']);
-                uncertaintyData.push(['Temperatur Matras', '', '', '', '', '', '', '40 °C']);
+                uncertaintyData.push(['Setting Alat', 'STDEV', 'Mean', 'Mean Terkoreksi', 'Koreksi', 'U95', 'Koreksi + U95', 'Toleransi', 'Satuan']);
+                uncertaintyData.push(['T1', '', '', '', '', 0.52, '', 0.8, '°C']);
+                uncertaintyData.push(['T2', '', '', '', '', 0.52, '', 0.8, '°C']);
+                uncertaintyData.push(['T3', '', '', '', '', 0.52, '', 0.8, '°C']);
+                uncertaintyData.push(['T4', '', '', '', '', 0.52, '', 0.8, '°C']);
+                uncertaintyData.push(['T5', '', '', '', '', 0.52, '', 0.8, '°C']);
+                uncertaintyData.push(['Kelembapan', '', '', '', '', '', '', 0.10, '%rh']);
+                uncertaintyData.push(['Airflow', '', '', '', '', '', '', 0.35, 'm/s']);
+                uncertaintyData.push(['Kebisingan', '', '', '', '', '', '', 60, 'dB']);
+                uncertaintyData.push(['Temperatur Matras', '', '', '', '', '', '', 40, '°C']);
 
                 const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
                 wsAnalysis['!cols'] = [
@@ -913,8 +913,8 @@
 
                 const wsUncertainty = XLSX.utils.aoa_to_sheet(uncertaintyData);
                 wsUncertainty['!cols'] = [
-                    { wch: 15 }, { wch: 12 }, { wch: 12 }, { wch: 16 },
-                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }
+                    { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 16 },
+                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }
                 ];
 
                 XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analisis Statistik');
