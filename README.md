@@ -818,15 +818,15 @@
                     wsData.push([
                         row.date,
                         row.time,
-                        row.t1,
-                        row.t2,
-                        row.t3,
-                        row.t4,
-                        row.t5,
-                        row.tm,
-                        row.flow,
-                        row.noise,
-                        row.rh
+                        parseFloat(row.t1.toFixed(2)),
+                        parseFloat(row.t2.toFixed(2)),
+                        parseFloat(row.t3.toFixed(2)),
+                        parseFloat(row.t4.toFixed(2)),
+                        parseFloat(row.t5.toFixed(2)),
+                        parseFloat(row.tm.toFixed(2)),
+                        parseFloat(row.flow.toFixed(2)),
+                        parseFloat(row.noise.toFixed(2)),
+                        parseFloat(row.rh.toFixed(2))
                     ]);
                 });
 
