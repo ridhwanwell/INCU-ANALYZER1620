@@ -413,25 +413,25 @@
     <div class="battery-section">
         <h2>Battery Status</h2>
         <div class="battery-grid">
-            <div class="battery-box" id="batteryCenter">
+            <div class="battery-box low" id="batteryCenter">
                 <h4>Central Unit</h4>
-                <div class="battery-value" id="batteryCenterValue">100%</div>
+                <div class="battery-value" id="batteryCenterValue">0%</div>
             </div>
-            <div class="battery-box" id="batteryNode1">
+            <div class="battery-box low" id="batteryNode1">
                 <h4>Sensor Node 1</h4>
-                <div class="battery-value" id="batteryNode1Value">100%</div>
+                <div class="battery-value" id="batteryNode1Value">0%</div>
             </div>
-            <div class="battery-box" id="batteryNode2">
+            <div class="battery-box low" id="batteryNode2">
                 <h4>Sensor Node 2</h4>
-                <div class="battery-value" id="batteryNode2Value">100%</div>
+                <div class="battery-value" id="batteryNode2Value">0%</div>
             </div>
-            <div class="battery-box" id="batteryNode3">
+            <div class="battery-box low" id="batteryNode3">
                 <h4>Sensor Node 3</h4>
-                <div class="battery-value" id="batteryNode3Value">100%</div>
+                <div class="battery-value" id="batteryNode3Value">0%</div>
             </div>
-            <div class="battery-box" id="batteryNode4">
+            <div class="battery-box low" id="batteryNode4">
                 <h4>Sensor Node 4</h4>
-                <div class="battery-value" id="batteryNode4Value">100%</div>
+                <div class="battery-value" id="batteryNode4Value">0%</div>
             </div>
         </div>
     </div>
