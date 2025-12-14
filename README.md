@@ -355,6 +355,14 @@
             animation: fadeIn 0.5s ease-out;
         }
 
+        .data-table tr.out-of-tolerance {
+            background: rgba(231, 76, 60, 0.4) !important;
+        }
+
+        .data-table tr.out-of-tolerance:hover {
+            background: rgba(231, 76, 60, 0.5) !important;
+        }
+
         @media (max-width: 768px) {
             .sensor-grid {
                 grid-template-columns: repeat(2, 1fr);
@@ -546,6 +554,21 @@
             };
         }
 
+        function resetBatteryDisplay() {
+            document.getElementById('batteryCenterValue').textContent = '0%';
+            document.getElementById('batteryNode1Value').textContent = '0%';
+            document.getElementById('batteryNode2Value').textContent = '0%';
+            document.getElementById('batteryNode3Value').textContent = '0%';
+            document.getElementById('batteryNode4Value').textContent = '0%';
+            
+            // Add low class to all battery boxes
+            document.getElementById('batteryCenter').classList.add('low');
+            document.getElementById('batteryNode1').classList.add('low');
+            document.getElementById('batteryNode2').classList.add('low');
+            document.getElementById('batteryNode3').classList.add('low');
+            document.getElementById('batteryNode4').classList.add('low');
+        }
+
         client.on('connect', () => {
             console.log('Connected to MQTT broker');
             document.getElementById('mqttStatus').className = 'mqtt-status connected';
@@ -562,12 +585,14 @@
             document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
             document.getElementById('mqttStatus').textContent = 'MQTT Status: Error';
             resetSensorDisplay();
+            resetBatteryDisplay();
         });
 
         client.on('offline', () => {
             document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
             document.getElementById('mqttStatus').textContent = 'MQTT Status: Offline';
             resetSensorDisplay();
+            resetBatteryDisplay();
         });
 
         client.on('message', (receivedTopic, message) => {
@@ -688,6 +713,53 @@
             }
         }
 
+        function checkTolerance(data) {
+            // Check T1-T4 vs T5 (safe range: T5 ± 0.8°C)
+            const t5 = parseFloat(data.t5 || 0);
+            const temps = [
+                parseFloat(data.t1 || 0),
+                parseFloat(data.t2 || 0),
+                parseFloat(data.t3 || 0),
+                parseFloat(data.t4 || 0)
+            ];
+            
+            for (let temp of temps) {
+                if (temp > 0 && t5 > 0) {
+                    // T1-T4 must be within T5 ± 0.8°C
+                    // If T5 = 32°C, safe range is 31.2°C to 32.8°C
+                    if (temp < (t5 - 0.8) || temp > (t5 + 0.8)) {
+                        return true;
+                    }
+                }
+            }
+            
+            // Check RH (40% - 65%)
+            const rh = parseFloat(data.rh || 0);
+            if (rh > 0 && (rh < 40 || rh > 65)) {
+                return true;
+            }
+            
+            // Check TM (>= 40°C)
+            const tm = parseFloat(data.tm || 0);
+            if (tm >= 40) {
+                return true;
+            }
+            
+            // Check Flow (> 0.35 m/s)
+            const flow = parseFloat(data.flow || 0);
+            if (flow > 0.35) {
+                return true;
+            }
+            
+            // Check Noise (>= 65 dB)
+            const noise = parseFloat(data.noise || 0);
+            if (noise >= 65) {
+                return true;
+            }
+            
+            return false;
+        }
+
         function addTableRow(data) {
             const now = new Date();
             const row = {
@@ -709,6 +781,12 @@
             const tbody = document.getElementById('dataTableBody');
             const tr = document.createElement('tr');
             tr.classList.add('new-row');
+            
+            // Check if data is out of tolerance
+            if (checkTolerance(data)) {
+                tr.classList.add('out-of-tolerance');
+            }
+            
             tr.innerHTML = `
                 <td>${row.date}</td>
                 <td>${row.time}</td>
@@ -802,6 +880,20 @@
             }
         }
 
+        function calculateStats(values) {
+            if (values.length === 0) return { min: 0, max: 0, mean: 0, stdev: 0 };
+            
+            const sorted = [...values].sort((a, b) => a - b);
+            const min = sorted[0];
+            const max = sorted[sorted.length - 1];
+            const mean = values.reduce((a, b) => a + b, 0) / values.length;
+            
+            const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
+            const stdev = Math.sqrt(variance);
+            
+            return { min, max, mean, stdev };
+        }
+
         function exportToExcel() {
             if (tableData.length === 0) {
                 alert('No data to export. Please record some data first.');
@@ -848,34 +940,50 @@
                 analysisData.push(['Parameter', 'Minimal', 'Maksimal', 'STDEV', 'Mean']);
                 analysisData.push([]);
 
-                // Suhu T1-T5
+                // Calculate statistics for T1-T5
                 const sensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
                 sensors.forEach(sensor => {
                     const sensorKey = sensor.toLowerCase();
-                    const temps = tableData.map(row => row[sensorKey]).filter(t => t > 0);
+                    const values = tableData.map(row => row[sensorKey]).filter(t => t > 0);
                     
-                    if (temps.length > 0) {
-                        const sortedTemps = [...temps].sort((a, b) => a - b);
-                        const minValue = sortedTemps[0];
-                        const maxValue = sortedTemps[sortedTemps.length - 1];
-                        
+                    if (values.length > 0) {
+                        const stats = calculateStats(values);
                         analysisData.push([
                             sensor,
-                            parseFloat(minValue.toFixed(2)),
-                            parseFloat(maxValue.toFixed(2)),
-                            '', // STDEV kosong
-                            ''  // Mean kosong
+                            parseFloat(stats.min.toFixed(2)),
+                            parseFloat(stats.max.toFixed(2)),
+                            parseFloat(stats.stdev.toFixed(2)),
+                            parseFloat(stats.mean.toFixed(2))
                         ]);
                     }
                 });
 
                 analysisData.push([]);
                 
-                // Parameter lainnya
-                analysisData.push(['Kelembapan', '', '', '', '']);
-                analysisData.push(['TM (Suhu Matras)', '', '', '', '']);
-                analysisData.push(['Airflow', '', '', '', '']);
-                analysisData.push(['Kebisingan', '', '', '', '']);
+                // Calculate statistics for other parameters
+                const otherParams = [
+                    { name: 'Kelembapan', key: 'rh' },
+                    { name: 'TM (Suhu Matras)', key: 'tm' },
+                    { name: 'Airflow', key: 'flow' },
+                    { name: 'Kebisingan', key: 'noise' }
+                ];
+
+                otherParams.forEach(param => {
+                    const values = tableData.map(row => row[param.key]).filter(v => v > 0);
+                    
+                    if (values.length > 0) {
+                        const stats = calculateStats(values);
+                        analysisData.push([
+                            param.name,
+                            parseFloat(stats.min.toFixed(2)),
+                            parseFloat(stats.max.toFixed(2)),
+                            parseFloat(stats.stdev.toFixed(2)),
+                            parseFloat(stats.mean.toFixed(2))
+                        ]);
+                    } else {
+                        analysisData.push([param.name, '', '', '', '']);
+                    }
+                });
 
                 // Sheet 3: Uncertainty
                 const uncertaintyData = [];
