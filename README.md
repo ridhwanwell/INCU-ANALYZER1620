@@ -1,4 +1,3 @@
-<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -674,18 +673,25 @@
             let alarms = [];
             let hasError = false;
 
-            const temps = [data.t1, data.t2, data.t3, data.t4, data.t5].filter(t => t !== undefined).map(t => parseFloat(t));
-            
-            if (temps.length >= 2) {
-                const maxTemp = Math.max(...temps);
-                const minTemp = Math.min(...temps);
-                const tempDiff = maxTemp - minTemp;
+            // ✅ TAMBAHAN: Cek T1-T4 vs T5 dengan toleransi 0.8°C
+            const t5 = parseFloat(data.t5 || 0);
+            const tempSensors = [
+                { name: 'T1', value: parseFloat(data.t1 || 0) },
+                { name: 'T2', value: parseFloat(data.t2 || 0) },
+                { name: 'T3', value: parseFloat(data.t3 || 0) },
+                { name: 'T4', value: parseFloat(data.t4 || 0) }
+            ];
 
-                if (tempDiff > 2.0) {
-                    hasError = true;
-                    alarms.push(`⚠️ Temperature variance: ${tempDiff.toFixed(1)}°C`);
+            // Cek setiap sensor T1-T4 terhadap T5
+            tempSensors.forEach(sensor => {
+                if (sensor.value > 0 && t5 > 0) {
+                    const diff = Math.abs(sensor.value - t5);
+                    if (diff > 0.8) {
+                        hasError = true;
+                        alarms.push(`⚠️ ${sensor.name}: ${sensor.value.toFixed(2)}°C (selisih ${diff.toFixed(2)}°C dari T5)`);
+                    }
                 }
-            }
+            });
 
             const batteries = {
                 'Central Unit': data.battery_center,
