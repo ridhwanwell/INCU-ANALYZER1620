@@ -302,6 +302,45 @@
             transition: all 0.3s ease;
         }
 
+        .temp-selection {
+            max-width: 1200px;
+            margin: 0 auto 30px auto;
+            text-align: center;
+        }
+
+        .temp-selection h3 {
+            margin-bottom: 15px;
+            color: #fff;
+        }
+
+        .temp-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .temp-btn {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border: 2px solid rgba(52, 152, 219, 0.5);
+            border-radius: 8px;
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .temp-btn.selected {
+            background: rgba(52, 152, 219, 0.8);
+            border-color: rgba(52, 152, 219, 1);
+            box-shadow: 0 4px 15px rgba(52, 152, 219, 0.5);
+        }
+
+        .temp-btn:hover {
+            transform: translateY(-3px);
+            background: rgba(52, 152, 219, 0.6);
+        }
+
         .table-container {
             width: 100%;
             overflow-x: auto;
@@ -486,6 +525,14 @@
         </div>
     </div>
 
+    <div class="temp-selection">
+        <h3>Temperature Setting for Export</h3>
+        <div class="temp-buttons">
+            <button class="temp-btn selected" id="temp32Btn" onclick="selectTemp(32)">32°C</button>
+            <button class="temp-btn" id="temp36Btn" onclick="selectTemp(36)">36°C</button>
+        </div>
+    </div>
+
     <div class="table-container">
         <table class="data-table">
             <thead>
@@ -530,6 +577,18 @@
         let currentSensorData = {};
         let lastDataTime = Date.now();
         let connectionCheckInterval;
+        let selectedTemp = 32;
+
+        function selectTemp(temp) {
+            selectedTemp = temp;
+            document.getElementById('temp32Btn').classList.remove('selected');
+            document.getElementById('temp36Btn').classList.remove('selected');
+            if (temp === 32) {
+                document.getElementById('temp32Btn').classList.add('selected');
+            } else {
+                document.getElementById('temp36Btn').classList.add('selected');
+            }
+        }
 
         connectionCheckInterval = setInterval(() => {
             if (Date.now() - lastDataTime > 10000) {
@@ -561,7 +620,6 @@
             document.getElementById('batteryNode3Value').textContent = '0%';
             document.getElementById('batteryNode4Value').textContent = '0%';
             
-            // Add low class to all battery boxes
             document.getElementById('batteryCenter').classList.add('low');
             document.getElementById('batteryNode1').classList.add('low');
             document.getElementById('batteryNode2').classList.add('low');
@@ -674,7 +732,6 @@
             let alarms = [];
             let hasError = false;
 
-            // ✅ REVISI: Cek T1-T4 vs T5 dengan toleransi 0.8°C
             const t5 = parseFloat(data.t5 || 0);
             const tempSensors = [
                 { name: 'T1', value: parseFloat(data.t1 || 0) },
@@ -683,20 +740,14 @@
                 { name: 'T4', value: parseFloat(data.t4 || 0) }
             ];
 
-            // Cek setiap sensor T1-T4 terhadap T5
-            // Range aman: T5 - 0.8 sampai T5 + 0.8
-            // Jika T5 = 32°C, range aman = 31.2°C sampai 32.8°C
             tempSensors.forEach(sensor => {
                 if (sensor.value > 0 && t5 > 0) {
-                    const diff = sensor.value - t5; // Selisih (positif = lebih tinggi, negatif = lebih rendah)
+                    const diff = sensor.value - t5;
                     const minSafe = t5 - 0.8;
                     const maxSafe = t5 + 0.8;
                     
-                    // Cek apakah di luar range aman
                     if (sensor.value < minSafe || sensor.value > maxSafe) {
                         hasError = true;
-                        
-                        // Format pesan: "T1 over temp +0.9°C" atau "T1 over temp -0.9°C"
                         const overTemp = diff.toFixed(1);
                         const sign = diff > 0 ? '+' : '';
                         alarms.push(`⚠️ ${sensor.name} over temp ${sign}${overTemp}°C`);
@@ -731,7 +782,6 @@
         }
 
         function checkTolerance(data) {
-            // Check T1-T4 vs T5 (safe range: T5 ± 0.8°C)
             const t5 = parseFloat(data.t5 || 0);
             const temps = [
                 parseFloat(data.t1 || 0),
@@ -742,33 +792,27 @@
             
             for (let temp of temps) {
                 if (temp > 0 && t5 > 0) {
-                    // T1-T4 must be within T5 ± 0.8°C
-                    // If T5 = 32°C, safe range is 31.2°C to 32.8°C
                     if (temp < (t5 - 0.8) || temp > (t5 + 0.8)) {
                         return true;
                     }
                 }
             }
             
-            // Check RH (40% - 65%)
             const rh = parseFloat(data.rh || 0);
             if (rh > 0 && (rh < 40 || rh > 65)) {
                 return true;
             }
             
-            // Check TM (>= 40°C)
             const tm = parseFloat(data.tm || 0);
             if (tm >= 40) {
                 return true;
             }
             
-            // Check Flow (> 0.35 m/s)
             const flow = parseFloat(data.flow || 0);
             if (flow > 0.35) {
                 return true;
             }
             
-            // Check Noise (>= 65 dB)
             const noise = parseFloat(data.noise || 0);
             if (noise >= 65) {
                 return true;
@@ -799,7 +843,6 @@
             const tr = document.createElement('tr');
             tr.classList.add('new-row');
             
-            // Check if data is out of tolerance
             if (checkTolerance(data)) {
                 tr.classList.add('out-of-tolerance');
             }
@@ -918,7 +961,6 @@
             }
 
             try {
-                // Sheet 1: Raw Data
                 const wsData = [
                     ['Date', 'Time', 'T1 (°C)', 'T2 (°C)', 'T3 (°C)', 'T4 (°C)', 'T5 (°C)', 'TM (°C)', 'Flow (m/s)', 'Noise (dB)', 'RH (%)']
                 ];
@@ -949,22 +991,22 @@
 
                 XLSX.utils.book_append_sheet(wb, ws, 'Raw Data');
 
-                // Sheet 2: Statistical Analysis
                 const analysisData = [];
-                
                 analysisData.push(['ANALISIS STATISTIK']);
                 analysisData.push([]);
                 analysisData.push(['Parameter', 'Minimal', 'Maksimal', 'STDEV', 'Mean']);
                 analysisData.push([]);
 
-                // Calculate statistics for T1-T5
                 const sensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
+                const statsMap = {};
+                
                 sensors.forEach(sensor => {
                     const sensorKey = sensor.toLowerCase();
                     const values = tableData.map(row => row[sensorKey]).filter(t => t > 0);
                     
                     if (values.length > 0) {
                         const stats = calculateStats(values);
+                        statsMap[sensor] = stats;
                         analysisData.push([
                             sensor,
                             parseFloat(stats.min.toFixed(2)),
@@ -977,7 +1019,6 @@
 
                 analysisData.push([]);
                 
-                // Calculate statistics for other parameters
                 const otherParams = [
                     { name: 'Kelembapan', key: 'rh' },
                     { name: 'TM (Suhu Matras)', key: 'tm' },
@@ -990,6 +1031,7 @@
                     
                     if (values.length > 0) {
                         const stats = calculateStats(values);
+                        statsMap[param.name] = stats;
                         analysisData.push([
                             param.name,
                             parseFloat(stats.min.toFixed(2)),
@@ -997,17 +1039,13 @@
                             parseFloat(stats.stdev.toFixed(2)),
                             parseFloat(stats.mean.toFixed(2))
                         ]);
-                    } else {
-                        analysisData.push([param.name, '', '', '', '']);
                     }
                 });
 
-                // Sheet 3: Uncertainty
                 const uncertaintyData = [];
                 uncertaintyData.push(['UNCERTAINTY ANALYSIS']);
                 uncertaintyData.push([]);
                 
-                // Tabel Nilai Ketidakpastian
                 uncertaintyData.push(['TABEL NILAI KETIDAKPASTIAN']);
                 uncertaintyData.push(['Sensor', 'Suhu 32°C', 'Suhu 36°C']);
                 uncertaintyData.push(['T1', -0.034, -0.005]);
@@ -1018,18 +1056,132 @@
                 uncertaintyData.push([]);
                 uncertaintyData.push([]);
                 
-                // Tabel Lengkap
                 uncertaintyData.push(['TABEL ANALISIS LENGKAP']);
-                uncertaintyData.push(['Setting Alat', 'STDEV', 'Mean', 'Mean Terkoreksi', 'Koreksi', 'U95', 'Koreksi + U95', 'Toleransi', 'Satuan']);
-                uncertaintyData.push(['T1', '', '', '', '', 0.52, '', 0.8, '°C']);
-                uncertaintyData.push(['T2', '', '', '', '', 0.52, '', 0.8, '°C']);
-                uncertaintyData.push(['T3', '', '', '', '', 0.52, '', 0.8, '°C']);
-                uncertaintyData.push(['T4', '', '', '', '', 0.52, '', 0.8, '°C']);
-                uncertaintyData.push(['T5', '', '', '', '', 0.52, '', 0.8, '°C']);
-                uncertaintyData.push(['Kelembapan', '', '', '', '', '', '', 0.10, '%rh']);
-                uncertaintyData.push(['Airflow', '', '', '', '', '', '', 0.35, 'm/s']);
-                uncertaintyData.push(['Kebisingan', '', '', '', '', '', '', 60, 'dB']);
-                uncertaintyData.push(['Temperatur Matras', '', '', '', '', '', '', 40, '°C']);
+                uncertaintyData.push(['Setting Alat', 'STDEV', 'Mean', 'Mean Terkoreksi', 'Koreksi', 'U95', 'Koreksi + U95', 'Toleransi', 'Hasil']);
+                
+                const uncertaintyValues = selectedTemp === 32 
+                    ? { T1: -0.034, T2: -0.034, T3: 0.006, T4: 0.066, T5: -0.024 }
+                    : { T1: -0.005, T2: 0.145, T3: 0.065, T4: 0.135, T5: 0.055 };
+                
+                const tempSensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
+                const correctedMeans = {};
+                
+                tempSensors.forEach(sensor => {
+                    if (statsMap[sensor]) {
+                        correctedMeans[sensor] = statsMap[sensor].mean + uncertaintyValues[sensor];
+                    }
+                });
+                
+                tempSensors.forEach(sensor => {
+                    if (statsMap[sensor]) {
+                        const stdev = parseFloat(statsMap[sensor].stdev.toFixed(2));
+                        const mean = parseFloat(statsMap[sensor].mean.toFixed(2));
+                        const meanCorrected = parseFloat(correctedMeans[sensor].toFixed(2));
+                        
+                        let correction = '';
+                        let u95 = '';
+                        let correctionPlusU95 = '';
+                        let tolerance = '';
+                        let result = '';
+                        
+                        if (sensor === 'T5') {
+                            tolerance = '± 1.5';
+                            const safeMin = selectedTemp === 32 ? 30.5 : 34.5;
+                            const safeMax = selectedTemp === 32 ? 33.5 : 37.5;
+                            
+                            if (mean >= safeMin && mean <= safeMax) {
+                                result = 'LOLOS';
+                            } else {
+                                result = 'TIDAK LOLOS';
+                            }
+                        } else {
+                            correction = parseFloat((correctedMeans[sensor] - correctedMeans['T5']).toFixed(2));
+                            u95 = 0.52;
+                            correctionPlusU95 = parseFloat((Math.abs(correction) + Math.abs(u95)).toFixed(2));
+                            tolerance = 0.8;
+                            
+                            if (correctionPlusU95 < 0.8) {
+                                result = 'LOLOS';
+                            } else {
+                                result = 'TIDAK LOLOS';
+                            }
+                        }
+                        
+                        uncertaintyData.push([
+                            sensor,
+                            stdev,
+                            mean,
+                            meanCorrected,
+                            correction,
+                            u95,
+                            correctionPlusU95,
+                            tolerance,
+                            result
+                        ]);
+                    }
+                });
+                
+                const rhTolerance = selectedTemp === 32 ? '70-80' : '50-80';
+                const rhMin = selectedTemp === 32 ? 70 : 50;
+                const rhMax = 80;
+                
+                if (statsMap['Kelembapan']) {
+                    const stdev = parseFloat(statsMap['Kelembapan'].stdev.toFixed(2));
+                    const mean = parseFloat(statsMap['Kelembapan'].mean.toFixed(2));
+                    const correction = mean;
+                    
+                    let result = '';
+                    if (mean >= rhMin && mean <= rhMax) {
+                        result = 'LOLOS';
+                    } else {
+                        result = 'TIDAK LOLOS';
+                    }
+                    
+                    uncertaintyData.push([
+                        'Kelembapan',
+                        stdev,
+                        mean,
+                        '',
+                        correction,
+                        '',
+                        '',
+                        rhTolerance,
+                        result
+                    ]);
+                }
+                
+                const otherParamsData = [
+                    { name: 'Airflow', tolerance: 0.35, key: 'Airflow' },
+                    { name: 'Kebisingan', tolerance: 60, key: 'Kebisingan' },
+                    { name: 'Temperatur Matras', tolerance: 40, key: 'TM (Suhu Matras)' }
+                ];
+                
+                otherParamsData.forEach(param => {
+                    if (statsMap[param.key]) {
+                        const stdev = parseFloat(statsMap[param.key].stdev.toFixed(2));
+                        const mean = parseFloat(statsMap[param.key].mean.toFixed(2));
+                        const correction = mean;
+                        
+                        let result = '';
+                        if (Math.abs(correction) < param.tolerance) {
+                            result = 'LOLOS';
+                        } else {
+                            result = 'TIDAK LOLOS';
+                        }
+                        
+                        uncertaintyData.push([
+                            param.name,
+                            stdev,
+                            mean,
+                            '',
+                            correction,
+                            '',
+                            '',
+                            param.tolerance,
+                            result
+                        ]);
+                    }
+                });
 
                 const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
                 wsAnalysis['!cols'] = [
@@ -1039,18 +1191,18 @@
                 const wsUncertainty = XLSX.utils.aoa_to_sheet(uncertaintyData);
                 wsUncertainty['!cols'] = [
                     { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 16 },
-                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 10 }
+                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 }
                 ];
 
                 XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analisis Statistik');
                 XLSX.utils.book_append_sheet(wb, wsUncertainty, 'Uncertainty');
 
                 const now = new Date();
-                const filename = `INCU_Data_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
+                const filename = `INCU_Data_${selectedTemp}C_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
 
                 XLSX.writeFile(wb, filename);
                 
-                alert('Data exported successfully with statistical analysis!');
+                alert(`Data exported successfully for ${selectedTemp}°C setting!`);
             } catch (error) {
                 console.error('Export error:', error);
                 alert('Error exporting data: ' + error.message);
