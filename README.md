@@ -1,3 +1,4 @@
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -673,7 +674,7 @@
             let alarms = [];
             let hasError = false;
 
-            // ✅ TAMBAHAN: Cek T1-T4 vs T5 dengan toleransi 0.8°C
+            // ✅ REVISI: Cek T1-T4 vs T5 dengan toleransi 0.8°C
             const t5 = parseFloat(data.t5 || 0);
             const tempSensors = [
                 { name: 'T1', value: parseFloat(data.t1 || 0) },
@@ -683,12 +684,22 @@
             ];
 
             // Cek setiap sensor T1-T4 terhadap T5
+            // Range aman: T5 - 0.8 sampai T5 + 0.8
+            // Jika T5 = 32°C, range aman = 31.2°C sampai 32.8°C
             tempSensors.forEach(sensor => {
                 if (sensor.value > 0 && t5 > 0) {
-                    const diff = Math.abs(sensor.value - t5);
-                    if (diff > 0.8) {
+                    const diff = sensor.value - t5; // Selisih (positif = lebih tinggi, negatif = lebih rendah)
+                    const minSafe = t5 - 0.8;
+                    const maxSafe = t5 + 0.8;
+                    
+                    // Cek apakah di luar range aman
+                    if (sensor.value < minSafe || sensor.value > maxSafe) {
                         hasError = true;
-                        alarms.push(`⚠️ ${sensor.name}: ${sensor.value.toFixed(2)}°C (selisih ${diff.toFixed(2)}°C dari T5)`);
+                        
+                        // Format pesan: "T1 over temp +0.9°C" atau "T1 over temp -0.9°C"
+                        const overTemp = diff.toFixed(1);
+                        const sign = diff > 0 ? '+' : '';
+                        alarms.push(`⚠️ ${sensor.name} over temp ${sign}${overTemp}°C`);
                     }
                 }
             });
