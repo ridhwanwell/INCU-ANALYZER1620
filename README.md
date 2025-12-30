@@ -510,17 +510,17 @@
                 <h3>TM</h3>
                 <div class="sensor-value" id="tmValue">0.0 °C</div>
             </div>
+            <div class="sensor-box" id="rhBox">
+                <h3>HUMIDITY</h3>
+                <div class="sensor-value" id="rhValue">0.0 %</div>
+            </div>
             <div class="sensor-box" id="flowBox">
-                <h3>Flow</h3>
+                <h3>AIRFLOW</h3>
                 <div class="sensor-value" id="flowValue">0.0 m/s</div>
             </div>
             <div class="sensor-box" id="noiseBox">
-                <h3>Noise</h3>
+                <h3>NOISE</h3>
                 <div class="sensor-value" id="noiseValue">0.0 dB</div>
-            </div>
-            <div class="sensor-box" id="rhBox">
-                <h3>RH</h3>
-                <div class="sensor-value" id="rhValue">0.0 %</div>
             </div>
         </div>
     </div>
@@ -545,9 +545,9 @@
                     <th>T4 (°C)</th>
                     <th>T5 (°C)</th>
                     <th>TM (°C)</th>
-                    <th>Flow (m/s)</th>
+                    <th>Humidity (%)</th>
+                    <th>Airflow (m/s)</th>
                     <th>Noise (dB)</th>
-                    <th>RH (%)</th>
                 </tr>
             </thead>
             <tbody id="dataTableBody"></tbody>
@@ -832,9 +832,9 @@
                 t4: parseFloat(data.t4 || 0),
                 t5: parseFloat(data.t5 || 0),
                 tm: parseFloat(data.tm || 0),
+                rh: parseFloat(data.rh || 0),
                 flow: parseFloat(data.flow || 0),
-                noise: parseFloat(data.noise || 0),
-                rh: parseFloat(data.rh || 0)
+                noise: parseFloat(data.noise || 0)
             };
             
             tableData.push(row);
@@ -856,9 +856,9 @@
                 <td>${row.t4.toFixed(2)}</td>
                 <td>${row.t5.toFixed(2)}</td>
                 <td>${row.tm.toFixed(2)}</td>
+                <td>${row.rh.toFixed(2)}</td>
                 <td>${row.flow.toFixed(2)}</td>
                 <td>${row.noise.toFixed(2)}</td>
-                <td>${row.rh.toFixed(2)}</td>
             `;
             
             tbody.insertBefore(tr, tbody.firstChild);
@@ -962,7 +962,7 @@
 
             try {
                 const wsData = [
-                    ['Date', 'Time', 'T1 (°C)', 'T2 (°C)', 'T3 (°C)', 'T4 (°C)', 'T5 (°C)', 'TM (°C)', 'Flow (m/s)', 'Noise (dB)', 'RH (%)']
+                    ['Date', 'Time', 'T1 (°C)', 'T2 (°C)', 'T3 (°C)', 'T4 (°C)', 'T5 (°C)', 'TM (°C)', 'Humidity (%)', 'Airflow (m/s)', 'Noise (dB)']
                 ];
 
                 tableData.forEach(row => {
@@ -975,9 +975,9 @@
                         parseFloat(row.t4.toFixed(2)),
                         parseFloat(row.t5.toFixed(2)),
                         parseFloat(row.tm.toFixed(2)),
+                        parseFloat(row.rh.toFixed(2)),
                         parseFloat(row.flow.toFixed(2)),
-                        parseFloat(row.noise.toFixed(2)),
-                        parseFloat(row.rh.toFixed(2))
+                        parseFloat(row.noise.toFixed(2))
                     ]);
                 });
 
