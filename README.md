@@ -1121,9 +1121,9 @@
                     }
                 });
                 
-                const rhTolerance = selectedTemp === 32 ? '70-80' : '50-80';
-                const rhMin = selectedTemp === 32 ? 70 : 50;
-                const rhMax = 80;
+                const rhTolerance = '50-60';
+                const rhMin = 50;
+                const rhMax = 60;
                 
                 if (statsMap['Kelembapan']) {
                     const stdev = parseFloat(statsMap['Kelembapan'].stdev.toFixed(2));
@@ -1131,7 +1131,7 @@
                     const correction = mean;
                     
                     let result = '';
-                    if (mean >= rhMin && mean <= rhMax) {
+                    if (correction >= rhMin && correction <= rhMax) {
                         result = 'LOLOS';
                     } else {
                         result = 'TIDAK LOLOS';
