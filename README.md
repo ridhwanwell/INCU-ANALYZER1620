@@ -748,9 +748,12 @@
                     
                     if (sensor.value < minSafe || sensor.value > maxSafe) {
                         hasError = true;
-                        const overTemp = diff.toFixed(1);
-                        const sign = diff > 0 ? '+' : '';
-                        alarms.push(`⚠️ ${sensor.name} over temp ${sign}${overTemp}°C`);
+                        const tempDiff = diff.toFixed(1);
+                        if (diff > 0) {
+                            alarms.push(`⚠️ ${sensor.name} over temp +${tempDiff}°C`);
+                        } else {
+                            alarms.push(`⚠️ ${sensor.name} under temp ${tempDiff}°C`);
+                        }
                     }
                 }
             });
