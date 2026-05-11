@@ -1,4 +1,3 @@
-<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -1000,15 +999,16 @@
                 }
 
                 [
-                    { name:'Airflow',          tol:0.35, key:'Airflow' },
+                    { name:'Airflow',          tol:0.35, key:'Airflow', lte:true },
                     { name:'Kebisingan',        tol:60,   key:'Kebisingan' },
                     { name:'Temperatur Matras', tol:40,   key:'TM (Suhu Matras)' },
                 ].forEach(p => {
                     if (!statsMap[p.key]) return;
                     const st   = statsMap[p.key];
                     const mean = +st.mean.toFixed(2);
+                    const passes = p.lte ? mean <= p.tol : Math.abs(mean) < p.tol;
                     uncertaintyData.push([p.name, +st.stdev.toFixed(2), mean, '', mean, '', '', p.tol,
-                        Math.abs(mean) < p.tol ? 'LOLOS' : 'TIDAK LOLOS']);
+                        passes ? 'LOLOS' : 'TIDAK LOLOS']);
                 });
 
                 // Build workbook
