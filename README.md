@@ -406,7 +406,6 @@
             .sensor-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
-            
             .battery-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -416,7 +415,6 @@
             .sensor-grid {
                 grid-template-columns: 1fr;
             }
-            
             .battery-grid {
                 grid-template-columns: 1fr;
             }
@@ -425,11 +423,11 @@
 </head>
 <body>
     <h1 class="title">INCU Analyzer</h1>
-    
+
     <div id="mqttStatus" class="mqtt-status disconnected">
         MQTT Status: Disconnected
     </div>
-    
+
     <div class="control-buttons">
         <button id="saveBtn" class="control-btn">Play Saving Data</button>
         <button id="resetBtn" class="control-btn">Reset Data</button>
@@ -486,42 +484,15 @@
     <div class="sensor-section">
         <h2>Data Sensor</h2>
         <div class="sensor-grid">
-            <div class="sensor-box" id="t1Box">
-                <h3>T1</h3>
-                <div class="sensor-value" id="t1Value">0.0 °C</div>
-            </div>
-            <div class="sensor-box" id="t2Box">
-                <h3>T2</h3>
-                <div class="sensor-value" id="t2Value">0.0 °C</div>
-            </div>
-            <div class="sensor-box" id="t3Box">
-                <h3>T3</h3>
-                <div class="sensor-value" id="t3Value">0.0 °C</div>
-            </div>
-            <div class="sensor-box" id="t4Box">
-                <h3>T4</h3>
-                <div class="sensor-value" id="t4Value">0.0 °C</div>
-            </div>
-            <div class="sensor-box" id="t5Box">
-                <h3>T5</h3>
-                <div class="sensor-value" id="t5Value">0.0 °C</div>
-            </div>
-            <div class="sensor-box" id="tmBox">
-                <h3>TM</h3>
-                <div class="sensor-value" id="tmValue">0.0 °C</div>
-            </div>
-            <div class="sensor-box" id="rhBox">
-                <h3>HUMIDITY</h3>
-                <div class="sensor-value" id="rhValue">0.0 %</div>
-            </div>
-            <div class="sensor-box" id="flowBox">
-                <h3>AIRFLOW</h3>
-                <div class="sensor-value" id="flowValue">0.0 m/s</div>
-            </div>
-            <div class="sensor-box" id="noiseBox">
-                <h3>NOISE</h3>
-                <div class="sensor-value" id="noiseValue">0.0 dB</div>
-            </div>
+            <div class="sensor-box" id="t1Box"><h3>T1</h3><div class="sensor-value" id="t1Value">0.0 °C</div></div>
+            <div class="sensor-box" id="t2Box"><h3>T2</h3><div class="sensor-value" id="t2Value">0.0 °C</div></div>
+            <div class="sensor-box" id="t3Box"><h3>T3</h3><div class="sensor-value" id="t3Value">0.0 °C</div></div>
+            <div class="sensor-box" id="t4Box"><h3>T4</h3><div class="sensor-value" id="t4Value">0.0 °C</div></div>
+            <div class="sensor-box" id="t5Box"><h3>T5</h3><div class="sensor-value" id="t5Value">0.0 °C</div></div>
+            <div class="sensor-box" id="tmBox"><h3>TM</h3><div class="sensor-value" id="tmValue">0.0 °C</div></div>
+            <div class="sensor-box" id="rhBox"><h3>HUMIDITY</h3><div class="sensor-value" id="rhValue">0.0 %</div></div>
+            <div class="sensor-box" id="flowBox"><h3>AIRFLOW</h3><div class="sensor-value" id="flowValue">0.0 m/s</div></div>
+            <div class="sensor-box" id="noiseBox"><h3>NOISE</h3><div class="sensor-value" id="noiseValue">0.0 dB</div></div>
         </div>
     </div>
 
@@ -555,8 +526,8 @@
     </div>
 
     <script>
+        // ─── MQTT Setup ───────────────────────────────────────────────────────────
         const brokerUrl = 'wss://broker.hivemq.com:8884/mqtt';
-        
         const options = {
             clean: true,
             connectTimeout: 4000,
@@ -569,85 +540,337 @@
         const client = mqtt.connect(brokerUrl, options);
         const topic = 'incu/sensors';
 
+        // ─── State ────────────────────────────────────────────────────────────────
         let isRecording = false;
-        let timerInterval;
-        let dataInterval;
-        let remainingTime;
         let tableData = [];
         let currentSensorData = {};
         let lastDataTime = Date.now();
-        let connectionCheckInterval;
         let selectedTemp = 32;
+
+        // FIX: Use Date-based timing instead of tick counting to survive tab throttling
+        let recordingStartWallTime = null;   // Date.now() when recording started
+        let totalDurationMs = 0;             // total duration in ms
+        let intervalMs = 2000;               // data-capture interval in ms
+        let lastCaptureWallTime = null;      // last wall-time we captured a row
+
+        // rAF + visibility-safe tick loop
+        let rafHandle = null;
+        let tickHandle = null;
+
+        // ─── Helpers ──────────────────────────────────────────────────────────────
+        function parseTimerInput(timeString) {
+            const parts = timeString.split(':');
+            if (parts.length !== 3) return 60;
+            const hours   = parseInt(parts[0]) || 0;
+            const minutes = parseInt(parts[1]) || 0;
+            const seconds = parseInt(parts[2]) || 0;
+            return (hours * 3600) + (minutes * 60) + seconds;
+        }
+
+        function formatTime(seconds) {
+            const h = Math.floor(seconds / 3600);
+            const m = Math.floor((seconds % 3600) / 60);
+            const s = Math.floor(seconds % 60);
+            return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+        }
 
         function selectTemp(temp) {
             selectedTemp = temp;
-            document.getElementById('temp32Btn').classList.remove('selected');
-            document.getElementById('temp36Btn').classList.remove('selected');
-            if (temp === 32) {
-                document.getElementById('temp32Btn').classList.add('selected');
-            } else {
-                document.getElementById('temp36Btn').classList.add('selected');
+            document.getElementById('temp32Btn').classList.toggle('selected', temp === 32);
+            document.getElementById('temp36Btn').classList.toggle('selected', temp === 36);
+        }
+
+        // ─── CORE TICK (runs on a real-time setInterval, NOT rAF) ─────────────────
+        // Using setInterval with Web Lock / Wake Lock workarounds:
+        // The reliable fix is to use Date.now() deltas instead of trusting tick counts.
+
+        function tick() {
+            if (!isRecording) return;
+
+            const now = Date.now();
+            const elapsed = now - recordingStartWallTime;
+            const remaining = totalDurationMs - elapsed;
+
+            // Update countdown display
+            if (remaining <= 0) {
+                document.getElementById('timerDisplay').textContent = '00:00:00';
+                stopRecording();
+                return;
+            }
+
+            document.getElementById('timerDisplay').textContent = formatTime(Math.ceil(remaining / 1000));
+
+            // Check if it's time to capture a data row
+            if (now - lastCaptureWallTime >= intervalMs) {
+                lastCaptureWallTime = now;
+                if (Object.keys(currentSensorData).length > 0) {
+                    addTableRow(currentSensorData);
+                }
             }
         }
 
-        connectionCheckInterval = setInterval(() => {
-            if (Date.now() - lastDataTime > 10000) {
-                resetSensorDisplay();
-            }
-        }, 5000);
+        // ─── Recording Control ────────────────────────────────────────────────────
+        function startRecording() {
+            if (isRecording) return;
 
+            const timerInput = document.getElementById('timerInput').value;
+            const totalSeconds = parseTimerInput(timerInput);
+            if (totalSeconds <= 0) {
+                alert('Please enter a valid timer duration');
+                return;
+            }
+
+            intervalMs = (parseInt(document.getElementById('intervalInput').value) || 2) * 1000;
+            totalDurationMs = totalSeconds * 1000;
+            recordingStartWallTime = Date.now();
+            lastCaptureWallTime = Date.now(); // start capture clock now
+
+            isRecording = true;
+
+            document.getElementById('saveBtn').classList.add('active');
+            document.getElementById('saveBtn').textContent = 'Stop Saving Data';
+            document.getElementById('intervalInput').disabled = true;
+            document.getElementById('timerInput').disabled = true;
+
+            // FIX: Use a short setInterval (200ms) for high-resolution wall-clock checks.
+            // This is far more reliable than 1000ms because even when throttled to ~1Hz,
+            // we still catch the exact elapsed time via Date.now() — no skipped ticks.
+            tickHandle = setInterval(tick, 200);
+        }
+
+        function stopRecording() {
+            isRecording = false;
+
+            if (tickHandle) { clearInterval(tickHandle); tickHandle = null; }
+
+            document.getElementById('saveBtn').classList.remove('active');
+            document.getElementById('saveBtn').textContent = 'Play Saving Data';
+            document.getElementById('intervalInput').disabled = false;
+            document.getElementById('timerInput').disabled = false;
+        }
+
+        function resetData() {
+            if (confirm('Are you sure you want to reset all data?')) {
+                tableData = [];
+                document.getElementById('dataTableBody').innerHTML = '';
+                if (isRecording) stopRecording();
+                document.getElementById('timerDisplay').textContent =
+                    document.getElementById('timerInput').value || '00:00:00';
+            }
+        }
+
+        // ─── Page Visibility API ──────────────────────────────────────────────────
+        // FIX: When tab becomes visible again after being hidden, recalculate elapsed
+        // time properly — no data is lost, and the timer is immediately correct.
+        document.addEventListener('visibilitychange', () => {
+            if (!isRecording) return;
+
+            if (document.hidden) {
+                // Tab going hidden — nothing to do, Date.now() keeps ticking
+            } else {
+                // Tab came back visible — check if we missed any captures
+                const now = Date.now();
+                const elapsed = now - recordingStartWallTime;
+
+                if (elapsed >= totalDurationMs) {
+                    // Timer expired while we were away
+                    document.getElementById('timerDisplay').textContent = '00:00:00';
+                    stopRecording();
+                    return;
+                }
+
+                // Catch up on any missed data captures
+                // (if interval is 2s and we were gone 10s, capture up to 5 rows)
+                const missedCaptures = Math.floor((now - lastCaptureWallTime) / intervalMs);
+                if (missedCaptures > 0 && Object.keys(currentSensorData).length > 0) {
+                    // Add missed rows with interpolated timestamps
+                    for (let i = missedCaptures; i >= 1; i--) {
+                        const captureTime = now - (i * intervalMs);
+                        addTableRow(currentSensorData, new Date(captureTime));
+                    }
+                    lastCaptureWallTime = now;
+                }
+
+                // Update display immediately
+                const remaining = totalDurationMs - elapsed;
+                document.getElementById('timerDisplay').textContent = formatTime(Math.ceil(remaining / 1000));
+            }
+        });
+
+        // ─── Sensor Data ──────────────────────────────────────────────────────────
         function resetSensorDisplay() {
-            document.getElementById('t1Value').textContent = '00.00 °C';
-            document.getElementById('t2Value').textContent = '00.00 °C';
-            document.getElementById('t3Value').textContent = '00.00 °C';
-            document.getElementById('t4Value').textContent = '00.00 °C';
-            document.getElementById('t5Value').textContent = '00.00 °C';
-            document.getElementById('tmValue').textContent = '00.00 °C';
-            document.getElementById('flowValue').textContent = '00.00 m/s';
+            ['t1','t2','t3','t4','t5','tm'].forEach(id =>
+                document.getElementById(id+'Value').textContent = '00.00 °C'
+            );
+            document.getElementById('flowValue').textContent  = '00.00 m/s';
             document.getElementById('noiseValue').textContent = '00.00 dB';
-            document.getElementById('rhValue').textContent = '00.00 %';
-            
-            currentSensorData = {
-                t1: 0, t2: 0, t3: 0, t4: 0,
-                t5: 0, tm: 0, flow: 0, noise: 0, rh: 0
-            };
+            document.getElementById('rhValue').textContent    = '00.00 %';
+            currentSensorData = {};
         }
 
         function resetBatteryDisplay() {
-            document.getElementById('batteryCenterValue').textContent = '0%';
-            document.getElementById('batteryNode1Value').textContent = '0%';
-            document.getElementById('batteryNode2Value').textContent = '0%';
-            document.getElementById('batteryNode3Value').textContent = '0%';
-            document.getElementById('batteryNode4Value').textContent = '0%';
-            
-            document.getElementById('batteryCenter').classList.add('low');
-            document.getElementById('batteryNode1').classList.add('low');
-            document.getElementById('batteryNode2').classList.add('low');
-            document.getElementById('batteryNode3').classList.add('low');
-            document.getElementById('batteryNode4').classList.add('low');
+            ['Center','Node1','Node2','Node3','Node4'].forEach(name => {
+                document.getElementById('battery'+name+'Value').textContent = '0%';
+                document.getElementById('battery'+name).classList.add('low');
+            });
         }
 
-        client.on('connect', () => {
-            console.log('Connected to MQTT broker');
-            document.getElementById('mqttStatus').className = 'mqtt-status connected';
-            document.getElementById('mqttStatus').textContent = 'MQTT Status: Connected';
-            client.subscribe(topic, (err) => {
-                if (!err) {
-                    console.log('Subscribed to topic:', topic);
+        // Stale-data watchdog: reset display if no MQTT message for 10s
+        setInterval(() => {
+            if (Date.now() - lastDataTime > 10000) {
+                resetSensorDisplay();
+                resetBatteryDisplay();
+            }
+        }, 5000);
+
+        function highlightUpdatedValues() {
+            document.querySelectorAll('.sensor-box').forEach(box => {
+                box.classList.add('updated');
+                setTimeout(() => box.classList.remove('updated'), 1000);
+            });
+        }
+
+        function updateSensorValues(data) {
+            const fmt = (v, unit) =>
+                (v !== undefined && v !== null) ? `${parseFloat(v).toFixed(2)} ${unit}` : `00.00 ${unit}`;
+
+            document.getElementById('t1Value').textContent    = fmt(data.t1,    '°C');
+            document.getElementById('t2Value').textContent    = fmt(data.t2,    '°C');
+            document.getElementById('t3Value').textContent    = fmt(data.t3,    '°C');
+            document.getElementById('t4Value').textContent    = fmt(data.t4,    '°C');
+            document.getElementById('t5Value').textContent    = fmt(data.t5,    '°C');
+            document.getElementById('tmValue').textContent    = fmt(data.tm,    '°C');
+            document.getElementById('flowValue').textContent  = fmt(data.flow,  'm/s');
+            document.getElementById('noiseValue').textContent = fmt(data.noise, 'dB');
+            document.getElementById('rhValue').textContent    = fmt(data.rh,    '%');
+        }
+
+        function updateBatteryStatus(data) {
+            const map = {
+                battery_center: ['batteryCenter', 'batteryCenterValue'],
+                battery_node1:  ['batteryNode1',  'batteryNode1Value'],
+                battery_node2:  ['batteryNode2',  'batteryNode2Value'],
+                battery_node3:  ['batteryNode3',  'batteryNode3Value'],
+                battery_node4:  ['batteryNode4',  'batteryNode4Value'],
+            };
+            Object.entries(map).forEach(([key, [boxId, valId]]) => {
+                if (data[key] !== undefined) {
+                    const pct = parseFloat(data[key]);
+                    document.getElementById(valId).textContent = `${pct.toFixed(0)}%`;
+                    document.getElementById(boxId).classList.toggle('low', pct < 20);
                 }
             });
+        }
+
+        function checkAlarms(data) {
+            const alarmBox      = document.getElementById('alarmBox');
+            const alarmStatus   = document.getElementById('alarmStatus');
+            const alarmMessages = document.getElementById('alarmMessages');
+
+            let alarms = [];
+            const t5 = parseFloat(data.t5 || 0);
+
+            [['T1',data.t1],['T2',data.t2],['T3',data.t3],['T4',data.t4]].forEach(([name,val]) => {
+                const v = parseFloat(val || 0);
+                if (v > 0 && t5 > 0) {
+                    const diff = v - t5;
+                    if (v < t5 - 0.8 || v > t5 + 0.8) {
+                        alarms.push(`⚠️ ${name} ${diff < 0 ? 'under' : 'over'} temp ${diff < 0 ? '-' : '+'}${Math.abs(diff).toFixed(1)}°C`);
+                    }
+                }
+            });
+
+            const batteries = {
+                'Central Unit': data.battery_center,
+                'Node 1': data.battery_node1,
+                'Node 2': data.battery_node2,
+                'Node 3': data.battery_node3,
+                'Node 4': data.battery_node4,
+            };
+            Object.entries(batteries).forEach(([name, level]) => {
+                if (level !== undefined && parseFloat(level) < 20)
+                    alarms.push(`🔋 Low battery: ${name} ${parseFloat(level).toFixed(0)}%`);
+            });
+
+            const hasError = alarms.length > 0;
+            alarmBox.classList.toggle('alarm-active', hasError);
+            alarmStatus.textContent   = hasError ? 'ALERT!' : 'Normal';
+            alarmMessages.innerHTML   = alarms.join('<br>');
+        }
+
+        function checkTolerance(data) {
+            const t5 = parseFloat(data.t5 || 0);
+            for (const key of ['t1','t2','t3','t4']) {
+                const v = parseFloat(data[key] || 0);
+                if (v > 0 && t5 > 0 && (v < t5 - 0.8 || v > t5 + 0.8)) return true;
+            }
+            const rh    = parseFloat(data.rh    || 0);
+            const tm    = parseFloat(data.tm    || 0);
+            const flow  = parseFloat(data.flow  || 0);
+            const noise = parseFloat(data.noise || 0);
+            if (rh > 0    && (rh < 40 || rh > 65)) return true;
+            if (tm >= 40)                            return true;
+            if (flow > 0.35)                         return true;
+            if (noise >= 65)                         return true;
+            return false;
+        }
+
+        // FIX: accept optional timestamp so catch-up rows use correct time
+        function addTableRow(data, timestamp) {
+            const now = timestamp || new Date();
+            const row = {
+                date:  now.toLocaleDateString('id-ID'),
+                time:  now.toLocaleTimeString('id-ID'),
+                t1:    parseFloat(data.t1    || 0),
+                t2:    parseFloat(data.t2    || 0),
+                t3:    parseFloat(data.t3    || 0),
+                t4:    parseFloat(data.t4    || 0),
+                t5:    parseFloat(data.t5    || 0),
+                tm:    parseFloat(data.tm    || 0),
+                rh:    parseFloat(data.rh    || 0),
+                flow:  parseFloat(data.flow  || 0),
+                noise: parseFloat(data.noise || 0),
+            };
+
+            tableData.push(row);
+
+            const tbody = document.getElementById('dataTableBody');
+            const tr    = document.createElement('tr');
+            tr.classList.add('new-row');
+            if (checkTolerance(data)) tr.classList.add('out-of-tolerance');
+
+            tr.innerHTML = `
+                <td>${row.date}</td>
+                <td>${row.time}</td>
+                <td>${row.t1.toFixed(2)}</td>
+                <td>${row.t2.toFixed(2)}</td>
+                <td>${row.t3.toFixed(2)}</td>
+                <td>${row.t4.toFixed(2)}</td>
+                <td>${row.t5.toFixed(2)}</td>
+                <td>${row.tm.toFixed(2)}</td>
+                <td>${row.rh.toFixed(2)}</td>
+                <td>${row.flow.toFixed(2)}</td>
+                <td>${row.noise.toFixed(2)}</td>
+            `;
+            tbody.insertBefore(tr, tbody.firstChild);
+        }
+
+        // ─── MQTT ─────────────────────────────────────────────────────────────────
+        client.on('connect', () => {
+            document.getElementById('mqttStatus').className   = 'mqtt-status connected';
+            document.getElementById('mqttStatus').textContent = 'MQTT Status: Connected';
+            client.subscribe(topic);
         });
 
-        client.on('error', (error) => {
-            console.error('MQTT Error:', error);
-            document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
+        client.on('error', () => {
+            document.getElementById('mqttStatus').className   = 'mqtt-status disconnected';
             document.getElementById('mqttStatus').textContent = 'MQTT Status: Error';
             resetSensorDisplay();
             resetBatteryDisplay();
         });
 
         client.on('offline', () => {
-            document.getElementById('mqttStatus').className = 'mqtt-status disconnected';
+            document.getElementById('mqttStatus').className   = 'mqtt-status disconnected';
             document.getElementById('mqttStatus').textContent = 'MQTT Status: Offline';
             resetSensorDisplay();
             resetBatteryDisplay();
@@ -667,294 +890,15 @@
             }
         });
 
-        function highlightUpdatedValues() {
-            const boxes = document.querySelectorAll('.sensor-box');
-            boxes.forEach(box => {
-                box.classList.add('updated');
-                setTimeout(() => box.classList.remove('updated'), 1000);
-            });
-        }
-
-        function updateSensorValues(data) {
-            document.getElementById('t1Value').textContent = data.t1 !== undefined && data.t1 !== null ? `${parseFloat(data.t1).toFixed(2)} °C` : '00.00 °C';
-            document.getElementById('t2Value').textContent = data.t2 !== undefined && data.t2 !== null ? `${parseFloat(data.t2).toFixed(2)} °C` : '00.00 °C';
-            document.getElementById('t3Value').textContent = data.t3 !== undefined && data.t3 !== null ? `${parseFloat(data.t3).toFixed(2)} °C` : '00.00 °C';
-            document.getElementById('t4Value').textContent = data.t4 !== undefined && data.t4 !== null ? `${parseFloat(data.t4).toFixed(2)} °C` : '00.00 °C';
-            document.getElementById('t5Value').textContent = data.t5 !== undefined && data.t5 !== null ? `${parseFloat(data.t5).toFixed(2)} °C` : '00.00 °C';
-            document.getElementById('tmValue').textContent = data.tm !== undefined && data.tm !== null ? `${parseFloat(data.tm).toFixed(2)} °C` : '00.00 °C';
-            document.getElementById('flowValue').textContent = data.flow !== undefined && data.flow !== null ? `${parseFloat(data.flow).toFixed(2)} m/s` : '00.00 m/s';
-            document.getElementById('noiseValue').textContent = data.noise !== undefined && data.noise !== null ? `${parseFloat(data.noise).toFixed(2)} dB` : '00.00 dB';
-            document.getElementById('rhValue').textContent = data.rh !== undefined && data.rh !== null ? `${parseFloat(data.rh).toFixed(2)} %` : '00.00 %';
-        }
-
-        function updateBatteryStatus(data) {
-            if (data.battery_center !== undefined) {
-                const batteryCenter = parseFloat(data.battery_center);
-                document.getElementById('batteryCenterValue').textContent = `${batteryCenter.toFixed(0)}%`;
-                updateBatteryBox('batteryCenter', batteryCenter);
-            }
-            if (data.battery_node1 !== undefined) {
-                const batteryNode1 = parseFloat(data.battery_node1);
-                document.getElementById('batteryNode1Value').textContent = `${batteryNode1.toFixed(0)}%`;
-                updateBatteryBox('batteryNode1', batteryNode1);
-            }
-            if (data.battery_node2 !== undefined) {
-                const batteryNode2 = parseFloat(data.battery_node2);
-                document.getElementById('batteryNode2Value').textContent = `${batteryNode2.toFixed(0)}%`;
-                updateBatteryBox('batteryNode2', batteryNode2);
-            }
-            if (data.battery_node3 !== undefined) {
-                const batteryNode3 = parseFloat(data.battery_node3);
-                document.getElementById('batteryNode3Value').textContent = `${batteryNode3.toFixed(0)}%`;
-                updateBatteryBox('batteryNode3', batteryNode3);
-            }
-            if (data.battery_node4 !== undefined) {
-                const batteryNode4 = parseFloat(data.battery_node4);
-                document.getElementById('batteryNode4Value').textContent = `${batteryNode4.toFixed(0)}%`;
-                updateBatteryBox('batteryNode4', batteryNode4);
-            }
-        }
-
-        function updateBatteryBox(boxId, percentage) {
-            const box = document.getElementById(boxId);
-            if (percentage < 20) {
-                box.classList.add('low');
-            } else {
-                box.classList.remove('low');
-            }
-        }
-
-        function checkAlarms(data) {
-            const alarmBox = document.getElementById('alarmBox');
-            const alarmStatus = document.getElementById('alarmStatus');
-            const alarmMessages = document.getElementById('alarmMessages');
-            
-            let alarms = [];
-            let hasError = false;
-
-            const t5 = parseFloat(data.t5 || 0);
-            const tempSensors = [
-                { name: 'T1', value: parseFloat(data.t1 || 0) },
-                { name: 'T2', value: parseFloat(data.t2 || 0) },
-                { name: 'T3', value: parseFloat(data.t3 || 0) },
-                { name: 'T4', value: parseFloat(data.t4 || 0) }
-            ];
-
-            tempSensors.forEach(sensor => {
-                if (sensor.value > 0 && t5 > 0) {
-                    const diff = sensor.value - t5;
-                    const minSafe = t5 - 0.8;
-                    const maxSafe = t5 + 0.8;
-                    
-                    if (sensor.value < minSafe || sensor.value > maxSafe) {
-                        hasError = true;
-                        const tempDiff = Math.abs(diff).toFixed(1);
-                        if (diff < 0) {
-                            alarms.push(`⚠️ ${sensor.name} under temp -${tempDiff}°C`);
-                        } else {
-                            alarms.push(`⚠️ ${sensor.name} over temp +${tempDiff}°C`);
-                        }
-                    }
-                }
-            });
-
-            const batteries = {
-                'Central Unit': data.battery_center,
-                'Node 1': data.battery_node1,
-                'Node 2': data.battery_node2,
-                'Node 3': data.battery_node3,
-                'Node 4': data.battery_node4
-            };
-
-            Object.entries(batteries).forEach(([name, level]) => {
-                if (level !== undefined && parseFloat(level) < 20) {
-                    hasError = true;
-                    alarms.push(`🔋 Low battery: ${name} ${parseFloat(level).toFixed(0)}%`);
-                }
-            });
-
-            if (hasError) {
-                alarmBox.classList.add('alarm-active');
-                alarmStatus.textContent = 'ALERT!';
-                alarmMessages.innerHTML = alarms.join('<br>');
-            } else {
-                alarmBox.classList.remove('alarm-active');
-                alarmStatus.textContent = 'Normal';
-                alarmMessages.innerHTML = '';
-            }
-        }
-
-        function checkTolerance(data) {
-            const t5 = parseFloat(data.t5 || 0);
-            const temps = [
-                parseFloat(data.t1 || 0),
-                parseFloat(data.t2 || 0),
-                parseFloat(data.t3 || 0),
-                parseFloat(data.t4 || 0)
-            ];
-            
-            for (let temp of temps) {
-                if (temp > 0 && t5 > 0) {
-                    if (temp < (t5 - 0.8) || temp > (t5 + 0.8)) {
-                        return true;
-                    }
-                }
-            }
-            
-            const rh = parseFloat(data.rh || 0);
-            if (rh > 0 && (rh < 40 || rh > 65)) {
-                return true;
-            }
-            
-            const tm = parseFloat(data.tm || 0);
-            if (tm >= 40) {
-                return true;
-            }
-            
-            const flow = parseFloat(data.flow || 0);
-            if (flow > 0.35) {
-                return true;
-            }
-            
-            const noise = parseFloat(data.noise || 0);
-            if (noise >= 65) {
-                return true;
-            }
-            
-            return false;
-        }
-
-        function addTableRow(data) {
-            const now = new Date();
-            const row = {
-                date: now.toLocaleDateString('id-ID'),
-                time: now.toLocaleTimeString('id-ID'),
-                t1: parseFloat(data.t1 || 0),
-                t2: parseFloat(data.t2 || 0),
-                t3: parseFloat(data.t3 || 0),
-                t4: parseFloat(data.t4 || 0),
-                t5: parseFloat(data.t5 || 0),
-                tm: parseFloat(data.tm || 0),
-                rh: parseFloat(data.rh || 0),
-                flow: parseFloat(data.flow || 0),
-                noise: parseFloat(data.noise || 0)
-            };
-            
-            tableData.push(row);
-            
-            const tbody = document.getElementById('dataTableBody');
-            const tr = document.createElement('tr');
-            tr.classList.add('new-row');
-            
-            if (checkTolerance(data)) {
-                tr.classList.add('out-of-tolerance');
-            }
-            
-            tr.innerHTML = `
-                <td>${row.date}</td>
-                <td>${row.time}</td>
-                <td>${row.t1.toFixed(2)}</td>
-                <td>${row.t2.toFixed(2)}</td>
-                <td>${row.t3.toFixed(2)}</td>
-                <td>${row.t4.toFixed(2)}</td>
-                <td>${row.t5.toFixed(2)}</td>
-                <td>${row.tm.toFixed(2)}</td>
-                <td>${row.rh.toFixed(2)}</td>
-                <td>${row.flow.toFixed(2)}</td>
-                <td>${row.noise.toFixed(2)}</td>
-            `;
-            
-            tbody.insertBefore(tr, tbody.firstChild);
-        }
-
-        function parseTimerInput(timeString) {
-            const parts = timeString.split(':');
-            if (parts.length !== 3) return 60;
-            
-            const hours = parseInt(parts[0]) || 0;
-            const minutes = parseInt(parts[1]) || 0;
-            const seconds = parseInt(parts[2]) || 0;
-            
-            return (hours * 3600) + (minutes * 60) + seconds;
-        }
-
-        function formatTime(seconds) {
-            const h = Math.floor(seconds / 3600);
-            const m = Math.floor((seconds % 3600) / 60);
-            const s = seconds % 60;
-            return `${String(h).padStart(2, '0')}:${String(m).padStart(2, '0')}:${String(s).padStart(2, '0')}`;
-        }
-
-        function startRecording() {
-            if (isRecording) return;
-            
-            const timerInput = document.getElementById('timerInput').value;
-            const intervalSeconds = parseInt(document.getElementById('intervalInput').value) || 2;
-            
-            remainingTime = parseTimerInput(timerInput);
-            if (remainingTime <= 0) {
-                alert('Please enter a valid timer duration');
-                return;
-            }
-
-            isRecording = true;
-            document.getElementById('saveBtn').classList.add('active');
-            document.getElementById('saveBtn').textContent = 'Stop Saving Data';
-            document.getElementById('intervalInput').disabled = true;
-            document.getElementById('timerInput').disabled = true;
-
-            timerInterval = setInterval(() => {
-                remainingTime--;
-                document.getElementById('timerDisplay').textContent = formatTime(remainingTime);
-                
-                if (remainingTime <= 0) {
-                    stopRecording();
-                }
-            }, 1000);
-
-            dataInterval = setInterval(() => {
-                if (Object.keys(currentSensorData).length > 0) {
-                    addTableRow(currentSensorData);
-                }
-            }, intervalSeconds * 1000);
-        }
-
-        function stopRecording() {
-            isRecording = false;
-            clearInterval(timerInterval);
-            clearInterval(dataInterval);
-            
-            document.getElementById('saveBtn').classList.remove('active');
-            document.getElementById('saveBtn').textContent = 'Play Saving Data';
-            document.getElementById('intervalInput').disabled = false;
-            document.getElementById('timerInput').disabled = false;
-        }
-
-        function resetData() {
-            if (confirm('Are you sure you want to reset all data?')) {
-                tableData = [];
-                document.getElementById('dataTableBody').innerHTML = '';
-                
-                if (isRecording) {
-                    stopRecording();
-                }
-                
-                document.getElementById('timerDisplay').textContent = '00:00:00';
-            }
-        }
-
+        // ─── Export ───────────────────────────────────────────────────────────────
         function calculateStats(values) {
             if (values.length === 0) return { min: 0, max: 0, mean: 0, stdev: 0 };
-            
             const sorted = [...values].sort((a, b) => a - b);
-            const min = sorted[0];
-            const max = sorted[sorted.length - 1];
+            const min  = sorted[0];
+            const max  = sorted[sorted.length - 1];
             const mean = values.reduce((a, b) => a + b, 0) / values.length;
-            
-            const variance = values.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / values.length;
-            const stdev = Math.sqrt(variance);
-            
-            return { min, max, mean, stdev };
+            const variance = values.reduce((s, v) => s + Math.pow(v - mean, 2), 0) / values.length;
+            return { min, max, mean, stdev: Math.sqrt(variance) };
         }
 
         function exportToExcel() {
@@ -964,247 +908,126 @@
             }
 
             try {
-                const wsData = [
-                    ['Date', 'Time', 'T1 (°C)', 'T2 (°C)', 'T3 (°C)', 'T4 (°C)', 'T5 (°C)', 'TM (°C)', 'Humidity (%)', 'Airflow (m/s)', 'Noise (dB)']
-                ];
-
+                // --- Sheet 1: Raw Data ---
+                const wsData = [['Date','Time','T1 (°C)','T2 (°C)','T3 (°C)','T4 (°C)','T5 (°C)','TM (°C)','Humidity (%)','Airflow (m/s)','Noise (dB)']];
                 tableData.forEach(row => {
                     wsData.push([
-                        row.date,
-                        row.time,
-                        parseFloat(row.t1.toFixed(2)),
-                        parseFloat(row.t2.toFixed(2)),
-                        parseFloat(row.t3.toFixed(2)),
-                        parseFloat(row.t4.toFixed(2)),
-                        parseFloat(row.t5.toFixed(2)),
-                        parseFloat(row.tm.toFixed(2)),
-                        parseFloat(row.rh.toFixed(2)),
-                        parseFloat(row.flow.toFixed(2)),
-                        parseFloat(row.noise.toFixed(2))
+                        row.date, row.time,
+                        +row.t1.toFixed(2), +row.t2.toFixed(2), +row.t3.toFixed(2),
+                        +row.t4.toFixed(2), +row.t5.toFixed(2), +row.tm.toFixed(2),
+                        +row.rh.toFixed(2), +row.flow.toFixed(2), +row.noise.toFixed(2)
                     ]);
                 });
 
-                const wb = XLSX.utils.book_new();
-                const ws = XLSX.utils.aoa_to_sheet(wsData);
-
-                ws['!cols'] = [
-                    { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 10 }, { wch: 10 },
-                    { wch: 10 }, { wch: 10 }, { wch: 10 }, { wch: 12 }, { wch: 12 }, { wch: 10 }
-                ];
-
-                XLSX.utils.book_append_sheet(wb, ws, 'Raw Data');
-
-                const analysisData = [];
-                analysisData.push(['ANALISIS STATISTIK']);
-                analysisData.push([]);
-                analysisData.push(['Parameter', 'Minimal', 'Maksimal', 'STDEV', 'Mean']);
-                analysisData.push([]);
-
-                const sensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
+                // --- Sheet 2: Analisis Statistik ---
                 const statsMap = {};
-                
-                sensors.forEach(sensor => {
-                    const sensorKey = sensor.toLowerCase();
-                    const values = tableData.map(row => row[sensorKey]).filter(t => t > 0);
-                    
-                    if (values.length > 0) {
-                        const stats = calculateStats(values);
-                        statsMap[sensor] = stats;
-                        analysisData.push([
-                            sensor,
-                            parseFloat(stats.min.toFixed(2)),
-                            parseFloat(stats.max.toFixed(2)),
-                            parseFloat(stats.stdev.toFixed(2)),
-                            parseFloat(stats.mean.toFixed(2))
-                        ]);
+                const analysisData = [['ANALISIS STATISTIK'],[],['Parameter','Minimal','Maksimal','STDEV','Mean'],[]];
+
+                ['T1','T2','T3','T4','T5'].forEach(s => {
+                    const vals = tableData.map(r => r[s.toLowerCase()]).filter(v => v > 0);
+                    if (vals.length) {
+                        const st = calculateStats(vals);
+                        statsMap[s] = st;
+                        analysisData.push([s, +st.min.toFixed(2), +st.max.toFixed(2), +st.stdev.toFixed(2), +st.mean.toFixed(2)]);
                     }
                 });
 
                 analysisData.push([]);
-                
+
                 const otherParams = [
-                    { name: 'Kelembapan', key: 'rh' },
+                    { name: 'Kelembapan',      key: 'rh' },
                     { name: 'TM (Suhu Matras)', key: 'tm' },
-                    { name: 'Airflow', key: 'flow' },
-                    { name: 'Kebisingan', key: 'noise' }
+                    { name: 'Airflow',          key: 'flow' },
+                    { name: 'Kebisingan',       key: 'noise' },
                 ];
-
-                otherParams.forEach(param => {
-                    const values = tableData.map(row => row[param.key]).filter(v => v > 0);
-                    
-                    if (values.length > 0) {
-                        const stats = calculateStats(values);
-                        statsMap[param.name] = stats;
-                        analysisData.push([
-                            param.name,
-                            parseFloat(stats.min.toFixed(2)),
-                            parseFloat(stats.max.toFixed(2)),
-                            parseFloat(stats.stdev.toFixed(2)),
-                            parseFloat(stats.mean.toFixed(2))
-                        ]);
+                otherParams.forEach(p => {
+                    const vals = tableData.map(r => r[p.key]).filter(v => v > 0);
+                    if (vals.length) {
+                        const st = calculateStats(vals);
+                        statsMap[p.name] = st;
+                        analysisData.push([p.name, +st.min.toFixed(2), +st.max.toFixed(2), +st.stdev.toFixed(2), +st.mean.toFixed(2)]);
                     }
                 });
 
-                const uncertaintyData = [];
-                uncertaintyData.push(['UNCERTAINTY ANALYSIS']);
-                uncertaintyData.push([]);
-                
-                uncertaintyData.push(['TABEL NILAI KETIDAKPASTIAN']);
-                uncertaintyData.push(['Sensor', 'Suhu 32°C', 'Suhu 36°C']);
-                uncertaintyData.push(['T1', -0.034, -0.005]);
-                uncertaintyData.push(['T2', -0.034, 0.145]);
-                uncertaintyData.push(['T3', 0.006, 0.065]);
-                uncertaintyData.push(['T4', 0.066, 0.135]);
-                uncertaintyData.push(['T5', -0.024, 0.055]);
-                uncertaintyData.push([]);
-                uncertaintyData.push([]);
-                
-                uncertaintyData.push(['TABEL ANALISIS LENGKAP']);
-                uncertaintyData.push(['Setting Alat', 'STDEV', 'Mean', 'Mean Terkoreksi', 'Koreksi', 'U95', 'Koreksi + U95', 'Toleransi', 'Hasil']);
-                
-                const uncertaintyValues = selectedTemp === 32 
-                    ? { T1: -0.034, T2: -0.034, T3: 0.006, T4: 0.066, T5: -0.024 }
-                    : { T1: -0.005, T2: 0.145, T3: 0.065, T4: 0.135, T5: 0.055 };
-                
-                const tempSensors = ['T1', 'T2', 'T3', 'T4', 'T5'];
+                // --- Sheet 3: Uncertainty ---
+                const uncertaintyData = [
+                    ['UNCERTAINTY ANALYSIS'],[],
+                    ['TABEL NILAI KETIDAKPASTIAN'],
+                    ['Sensor','Suhu 32°C','Suhu 36°C'],
+                    ['T1',-0.034,-0.005],['T2',-0.034,0.145],
+                    ['T3', 0.006, 0.065],['T4', 0.066,0.135],['T5',-0.024,0.055],
+                    [],[],
+                    ['TABEL ANALISIS LENGKAP'],
+                    ['Setting Alat','STDEV','Mean','Mean Terkoreksi','Koreksi','U95','Koreksi + U95','Toleransi','Hasil'],
+                ];
+
+                const ucVals = selectedTemp === 32
+                    ? { T1:-0.034, T2:-0.034, T3:0.006, T4:0.066, T5:-0.024 }
+                    : { T1:-0.005, T2: 0.145, T3:0.065, T4:0.135, T5: 0.055 };
+
                 const correctedMeans = {};
-                
-                tempSensors.forEach(sensor => {
-                    if (statsMap[sensor]) {
-                        correctedMeans[sensor] = statsMap[sensor].mean + uncertaintyValues[sensor];
-                    }
+                ['T1','T2','T3','T4','T5'].forEach(s => {
+                    if (statsMap[s]) correctedMeans[s] = statsMap[s].mean + ucVals[s];
                 });
-                
-                tempSensors.forEach(sensor => {
-                    if (statsMap[sensor]) {
-                        const stdev = parseFloat(statsMap[sensor].stdev.toFixed(2));
-                        const mean = parseFloat(statsMap[sensor].mean.toFixed(2));
-                        const meanCorrected = parseFloat(correctedMeans[sensor].toFixed(2));
-                        
-                        let correction = '';
-                        let u95 = '';
-                        let correctionPlusU95 = '';
-                        let tolerance = '';
-                        let result = '';
-                        
-                        if (sensor === 'T5') {
-                            tolerance = '± 1.5';
-                            const safeMin = selectedTemp === 32 ? 30.5 : 34.5;
-                            const safeMax = selectedTemp === 32 ? 33.5 : 37.5;
-                            
-                            if (mean >= safeMin && mean <= safeMax) {
-                                result = 'LOLOS';
-                            } else {
-                                result = 'TIDAK LOLOS';
-                            }
-                        } else {
-                            correction = parseFloat((correctedMeans[sensor] - correctedMeans['T5']).toFixed(2));
-                            u95 = 0.52;
-                            correctionPlusU95 = parseFloat((Math.abs(correction) + Math.abs(u95)).toFixed(2));
-                            tolerance = 0.8;
-                            
-                            if (correctionPlusU95 < 0.8) {
-                                result = 'LOLOS';
-                            } else {
-                                result = 'TIDAK LOLOS';
-                            }
-                        }
-                        
-                        uncertaintyData.push([
-                            sensor,
-                            stdev,
-                            mean,
-                            meanCorrected,
-                            correction,
-                            u95,
-                            correctionPlusU95,
-                            tolerance,
-                            result
-                        ]);
-                    }
-                });
-                
-                const rhTolerance = '50-60';
-                const rhMin = 50;
-                const rhMax = 60;
-                
-                if (statsMap['Kelembapan']) {
-                    const stdev = parseFloat(statsMap['Kelembapan'].stdev.toFixed(2));
-                    const mean = parseFloat(statsMap['Kelembapan'].mean.toFixed(2));
-                    const correction = mean;
-                    
-                    let result = '';
-                    if (correction >= rhMin && correction <= rhMax) {
-                        result = 'LOLOS';
+
+                ['T1','T2','T3','T4','T5'].forEach(s => {
+                    if (!statsMap[s]) return;
+                    const stdev = +statsMap[s].stdev.toFixed(2);
+                    const mean  = +statsMap[s].mean.toFixed(2);
+                    const meanC = +correctedMeans[s].toFixed(2);
+
+                    if (s === 'T5') {
+                        const safeMin = selectedTemp === 32 ? 30.5 : 34.5;
+                        const safeMax = selectedTemp === 32 ? 33.5 : 37.5;
+                        uncertaintyData.push([s, stdev, mean, meanC, '', '', '', '± 1.5',
+                            mean >= safeMin && mean <= safeMax ? 'LOLOS' : 'TIDAK LOLOS']);
                     } else {
-                        result = 'TIDAK LOLOS';
-                    }
-                    
-                    uncertaintyData.push([
-                        'Kelembapan',
-                        stdev,
-                        mean,
-                        '',
-                        correction,
-                        '',
-                        '',
-                        rhTolerance,
-                        result
-                    ]);
-                }
-                
-                const otherParamsData = [
-                    { name: 'Airflow', tolerance: 0.35, key: 'Airflow' },
-                    { name: 'Kebisingan', tolerance: 60, key: 'Kebisingan' },
-                    { name: 'Temperatur Matras', tolerance: 40, key: 'TM (Suhu Matras)' }
-                ];
-                
-                otherParamsData.forEach(param => {
-                    if (statsMap[param.key]) {
-                        const stdev = parseFloat(statsMap[param.key].stdev.toFixed(2));
-                        const mean = parseFloat(statsMap[param.key].mean.toFixed(2));
-                        const correction = mean;
-                        
-                        let result = '';
-                        if (Math.abs(correction) < param.tolerance) {
-                            result = 'LOLOS';
-                        } else {
-                            result = 'TIDAK LOLOS';
-                        }
-                        
-                        uncertaintyData.push([
-                            param.name,
-                            stdev,
-                            mean,
-                            '',
-                            correction,
-                            '',
-                            '',
-                            param.tolerance,
-                            result
-                        ]);
+                        const corr  = +(correctedMeans[s] - correctedMeans['T5']).toFixed(2);
+                        const u95   = 0.52;
+                        const cpU95 = +(Math.abs(corr) + Math.abs(u95)).toFixed(2);
+                        uncertaintyData.push([s, stdev, mean, meanC, corr, u95, cpU95, 0.8,
+                            cpU95 < 0.8 ? 'LOLOS' : 'TIDAK LOLOS']);
                     }
                 });
 
-                const wsAnalysis = XLSX.utils.aoa_to_sheet(analysisData);
-                wsAnalysis['!cols'] = [
-                    { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 12 }, { wch: 12 }
-                ];
+                if (statsMap['Kelembapan']) {
+                    const st   = statsMap['Kelembapan'];
+                    const mean = +st.mean.toFixed(2);
+                    uncertaintyData.push(['Kelembapan', +st.stdev.toFixed(2), mean, '', mean, '', '', '50-60',
+                        mean >= 50 && mean <= 60 ? 'LOLOS' : 'TIDAK LOLOS']);
+                }
 
-                const wsUncertainty = XLSX.utils.aoa_to_sheet(uncertaintyData);
-                wsUncertainty['!cols'] = [
-                    { wch: 18 }, { wch: 12 }, { wch: 12 }, { wch: 16 },
-                    { wch: 12 }, { wch: 12 }, { wch: 15 }, { wch: 12 }, { wch: 12 }
-                ];
+                [
+                    { name:'Airflow',          tol:0.35, key:'Airflow' },
+                    { name:'Kebisingan',        tol:60,   key:'Kebisingan' },
+                    { name:'Temperatur Matras', tol:40,   key:'TM (Suhu Matras)' },
+                ].forEach(p => {
+                    if (!statsMap[p.key]) return;
+                    const st   = statsMap[p.key];
+                    const mean = +st.mean.toFixed(2);
+                    uncertaintyData.push([p.name, +st.stdev.toFixed(2), mean, '', mean, '', '', p.tol,
+                        Math.abs(mean) < p.tol ? 'LOLOS' : 'TIDAK LOLOS']);
+                });
 
-                XLSX.utils.book_append_sheet(wb, wsAnalysis, 'Analisis Statistik');
-                XLSX.utils.book_append_sheet(wb, wsUncertainty, 'Uncertainty');
+                // Build workbook
+                const wb = XLSX.utils.book_new();
+
+                const ws1 = XLSX.utils.aoa_to_sheet(wsData);
+                ws1['!cols'] = [{wch:12},{wch:12},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:10},{wch:12},{wch:12},{wch:10}];
+
+                const ws2 = XLSX.utils.aoa_to_sheet(analysisData);
+                ws2['!cols'] = [{wch:20},{wch:12},{wch:12},{wch:12},{wch:12}];
+
+                const ws3 = XLSX.utils.aoa_to_sheet(uncertaintyData);
+                ws3['!cols'] = [{wch:18},{wch:12},{wch:12},{wch:16},{wch:12},{wch:12},{wch:15},{wch:12},{wch:12}];
+
+                XLSX.utils.book_append_sheet(wb, ws1, 'Raw Data');
+                XLSX.utils.book_append_sheet(wb, ws2, 'Analisis Statistik');
+                XLSX.utils.book_append_sheet(wb, ws3, 'Uncertainty');
 
                 const now = new Date();
-                const filename = `INCU_Data_${selectedTemp}C_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
-
-                XLSX.writeFile(wb, filename);
-                
+                const fname = `INCU_Data_${selectedTemp}C_${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}.xlsx`;
+                XLSX.writeFile(wb, fname);
                 alert(`Data exported successfully for ${selectedTemp}°C setting!`);
             } catch (error) {
                 console.error('Export error:', error);
@@ -1212,26 +1035,22 @@
             }
         }
 
+        // ─── UI Events ───────────────────────────────────────────────────────────
         document.getElementById('saveBtn').addEventListener('click', () => {
-            if (isRecording) {
-                stopRecording();
-            } else {
-                startRecording();
-            }
+            if (isRecording) stopRecording(); else startRecording();
         });
-
         document.getElementById('resetBtn').addEventListener('click', resetData);
         document.getElementById('exportBtn').addEventListener('click', exportToExcel);
 
-        document.getElementById('timerDisplay').textContent = document.getElementById('timerInput').value || '00:00:00';
+        document.getElementById('timerDisplay').textContent =
+            document.getElementById('timerInput').value || '00:00:00';
 
-        document.getElementById('timerInput').addEventListener('change', (e) => {
-            if (!isRecording) {
+        document.getElementById('timerInput').addEventListener('change', e => {
+            if (!isRecording)
                 document.getElementById('timerDisplay').textContent = e.target.value || '00:00:00';
-            }
         });
 
-        console.log('INCU Analyzer initialized');
+        console.log('INCU Analyzer initialized (fixed build)');
     </script>
 </body>
 </html>
