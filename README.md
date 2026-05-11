@@ -1,3 +1,4 @@
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -343,7 +344,7 @@
 
         .table-container {
             width: 100%;
-            overflow-x: auto;
+            overflow-x: hidden;
             margin-top: 20px;
             max-width: 1200px;
             margin-left: auto;
@@ -352,20 +353,21 @@
 
         .data-table {
             width: 100%;
-            border-collapse: separate;
+            border-collapse: collapse;
             border-spacing: 0;
             background: rgba(255, 255, 255, 0.1);
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-            border-radius: 10px;
-            overflow: hidden;
-            min-width: 1000px;
+            border-radius: 0;
+            table-layout: fixed;
         }
 
         .data-table th, .data-table td {
-            padding: 12px 15px;
-            text-align: left;
+            padding: 12px 8px;
+            text-align: center;
             border-bottom: 1px solid rgba(255, 255, 255, 0.1);
             white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
         }
 
         .data-table th {
